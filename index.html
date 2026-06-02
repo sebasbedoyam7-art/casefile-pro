@@ -755,11 +755,20 @@ body { background:var(--bg); color:var(--t1); font-family:'Crimson Pro',serif; m
 
         <div class="cfg-section">
           <div class="cfg-title">API Key de Anthropic</div>
-          <div class="cfg-note" style="margin-bottom:10px">Necesaria para generar casos. Se guarda solo en este navegador, nunca se comparte. Obtené la tuya en <a href="https://console.anthropic.com" target="_blank" style="color:var(--gold)">console.anthropic.com</a></div>
-          <label class="field-label">API Key</label>
+          <div class="cfg-note" style="margin-bottom:10px">Para generar casos. <a href="https://console.anthropic.com" target="_blank" style="color:var(--gold)">console.anthropic.com</a></div>
+          <label class="field-label">API Key Anthropic</label>
           <input class="field-input" type="password" id="cfg-apikey" placeholder="sk-ant-..." style="margin-bottom:10px;font-family:'IBM Plex Mono',monospace;font-size:11px">
-          <button class="cfg-save-btn" onclick="saveApiKey()">Guardar API Key</button>
+          <button class="cfg-save-btn" onclick="saveApiKey()">Guardar</button>
           <div id="apikey-status" style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:8px;color:var(--t3)"></div>
+        </div>
+
+        <div class="cfg-section">
+          <div class="cfg-title">API Key de OpenAI (imágenes DALL-E)</div>
+          <div class="cfg-note" style="margin-bottom:10px">Para generar imágenes reales de cada foto del caso. ~$0.04/imagen. <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold)">platform.openai.com</a></div>
+          <label class="field-label">API Key OpenAI</label>
+          <input class="field-input" type="password" id="cfg-openai" placeholder="sk-..." style="margin-bottom:10px;font-family:'IBM Plex Mono',monospace;font-size:11px">
+          <button class="cfg-save-btn" onclick="saveOpenAIKey()">Guardar</button>
+          <div id="openai-status" style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:8px;color:var(--t3)"></div>
         </div>
 
         <div class="cfg-section">
@@ -951,6 +960,20 @@ const LD_MSGS = [
 
 function getApiKey() { return localStorage.getItem('cfpro_apikey') || ''; }
 
+function getOpenAIKey() { return localStorage.getItem('cfpro_openai') || ''; }
+
+function saveOpenAIKey() {
+  const k = document.getElementById('cfg-openai').value.trim();
+  if(!k.startsWith('sk-')) {
+    document.getElementById('openai-status').textContent = '⚠ La key debe empezar con sk-';
+    document.getElementById('openai-status').style.color = 'var(--red2)'; return;
+  }
+  localStorage.setItem('cfpro_openai', k);
+  document.getElementById('openai-status').textContent = '✓ API Key OpenAI guardada';
+  document.getElementById('openai-status').style.color = 'var(--green)';
+  toast('API Key OpenAI guardada', 'success');
+}
+
 function saveApiKey() {
   const k = document.getElementById('cfg-apikey').value.trim();
   if(!k.startsWith('sk-ant-')) {
@@ -967,9 +990,71 @@ function loadApiKeyField() {
   const k = getApiKey();
   if(k) {
     document.getElementById('cfg-apikey').value = k;
-    document.getElementById('apikey-status').textContent = '✓ API Key configurada';
+    document.getElementById('apikey-status').textContent = '✓ API Key Anthropic configurada';
     document.getElementById('apikey-status').style.color = 'var(--green)';
   }
+  const ok = getOpenAIKey();
+  if(ok && document.getElementById('cfg-openai')) {
+    document.getElementById('cfg-openai').value = ok;
+    document.getElementById('openai-status').textContent = '✓ API Key OpenAI configurada';
+    document.getElementById('openai-status').style.color = 'var(--green)';
+  }
+}
+
+async function generateImageDALLE(prompt, apiKey) {
+  try {
+    const r = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt: prompt,
+        n: 1,
+        size: '1024x1024',
+        quality: 'standard',
+        response_format: 'b64_json'
+      })
+    });
+    if(!r.ok) { const e = await r.json(); console.error('DALLE error:', e); return null; }
+    const d = await r.json();
+    return 'data:image/png;base64,' + d.data[0].b64_json;
+  } catch(e) {
+    console.error('DALLE fetch error:', e);
+    return null;
+  }
+}
+
+async function generateCaseImages(caseData) {
+  const openaiKey = getOpenAIKey();
+  if(!openaiKey) return caseData;
+
+  const fotos = caseData.fotos || [];
+  if(!fotos.length) return caseData;
+
+  setLoadMsg('Generando imágenes con DALL-E...');
+  const generated = [];
+
+  for(let i = 0; i < Math.min(fotos.length, 4); i++) {
+    const foto = fotos[i];
+    setLoadMsg(`Generando imagen ${i+1} de ${Math.min(fotos.length,4)}...`);
+    const style = caseData.ambientacion && caseData.ambientacion.includes('19')
+      ? 'vintage noir detective photography, sepia tones, 1940s'
+      : 'dark crime scene photography, dramatic lighting, cinematic';
+    const prompt = `${style}. Scene: ${foto.titulo}. Details: ${foto.descripcion}. No text, no people's faces clearly visible, atmospheric, moody. High quality evidence photo style.`;
+    const imgData = await generateImageDALLE(prompt, openaiKey);
+    generated.push({ ...foto, imageData: imgData });
+  }
+
+  // Keep remaining fotos without images
+  for(let i = 4; i < fotos.length; i++) {
+    generated.push(fotos[i]);
+  }
+
+  caseData.fotos = generated;
+  return caseData;
 }
 
 async function generateCase() {
@@ -1011,6 +1096,10 @@ async function generateCase() {
     const clean = raw.replace(/```json|```/g,'').trim();
     let c;
     try { c = JSON.parse(clean); } catch(pe) { throw new Error('JSON inválido: ' + clean.substring(0,200)); }
+    // Generate images with DALL-E if OpenAI key is set
+    if(getOpenAIKey()) {
+      c = await generateCaseImages(c);
+    }
     caseN++;
     c._n = caseN;
     c._ts = new Date().toLocaleString('es',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -1183,11 +1272,13 @@ function displayCase(c) {
   }).join('');
 
   // Photos
-  document.getElementById('it-photos').innerHTML = (c.fotos||[]).map(f=>`
-    <div class="photo-item" title="${f.descripcion}">
-      <div class="photo-ico">📷</div>
-      <div class="photo-lbl-inner">${f.titulo}</div>
-      <div class="photo-overlay">${f.id}</div>
+  document.getElementById('it-photos').innerHTML = (c.fotos||[]).map((f,i)=>`
+    <div class="photo-item" title="${f.descripcion}" style="${f.imageData?'background:#000;':''}">
+      ${f.imageData
+        ? `<img src="${f.imageData}" style="width:100%;height:100%;object-fit:cover;display:block" alt="${f.titulo}">`
+        : `<div class="photo-ico">📷</div><div class="photo-lbl-inner">${f.titulo}</div>`
+      }
+      <div class="photo-overlay">${f.id||'FOTO-0'+(i+1)}</div>
     </div>`).join('');
 
   // Docs
@@ -1520,14 +1611,13 @@ function getSharedFooter(c, biz) {
 function buildPhotoScene(foto, idx) {
   const icons = ['🔦','🗝️','🩸','📜','🔪','💀','🕵️','🧪','🚬','⌚'];
   const icon = icons[idx % icons.length];
-  // Dark atmospheric illustration card
+  const imgContent = foto.imageData
+    ? `<img src="${foto.imageData}" style="width:100%;height:100%;object-fit:cover;display:block" alt="${foto.titulo}">`
+    : `<div class="photo-scene-inner"><span class="photo-scene-icon">${icon}</span><div class="photo-scene-txt">${foto.titulo}</div></div>`;
   return `
     <div class="photo-card">
-      <div class="photo-scene">
-        <div class="photo-scene-inner">
-          <span class="photo-scene-icon">${icon}</span>
-          <div class="photo-scene-txt">${foto.titulo}</div>
-        </div>
+      <div class="photo-scene" style="${foto.imageData?'padding:0;':''}">
+        ${imgContent}
       </div>
       <div class="photo-id">${foto.id || 'FOTO-0'+(idx+1)}</div>
       <div class="photo-tl">${foto.titulo}</div>
