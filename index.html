@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASE FILE PRO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#09090a; --s1:#111113; --s2:#18181b; --s3:#222226;
+  --b1:#2a2a30; --b2:#3a3a42; --b3:#52525e;
+  --t1:#f0ede8; --t2:#a8a4a0; --t3:#666268;
+  --gold:#c9a96e; --gold2:#e8c87e; --goldf:#f5dfa0;
+  --red:#b84040; --red2:#d45050; --redf:#e86060;
+  --green:#3d7a52; --yellow:#a88830; --blue:#3a5f8a;
+  --r:3px;
+}
+
+body { background:var(--bg); color:var(--t1); font-family:'Crimson Pro',serif; min-height:100vh; overflow:hidden; }
+
+/* ─── LOGIN ─── */
+#screen-login {
+  position:fixed; inset:0; z-index:200;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--bg);
+}
+.login-bg {
+  position:absolute; inset:0; overflow:hidden; pointer-events:none;
+}
+.login-bg::before {
+  content:'';
+  position:absolute; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(201,169,110,0.03) 60px, rgba(201,169,110,0.03) 61px),
+              repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(201,169,110,0.03) 60px, rgba(201,169,110,0.03) 61px);
+}
+.login-card {
+  position:relative; z-index:1;
+  width:360px;
+  background:var(--s1);
+  border:1px solid var(--b1);
+  border-top:2px solid var(--gold);
+  padding:40px 36px;
+  animation: fadeUp .5s ease;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+.login-logo {
+  font-family:'Playfair Display',serif;
+  font-size:28px; font-weight:900;
+  color:var(--gold);
+  letter-spacing:4px;
+  text-align:center;
+  margin-bottom:4px;
+}
+.login-sub {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8px; letter-spacing:4px;
+  color:var(--t3); text-align:center; text-transform:uppercase;
+  margin-bottom:32px;
+}
+.login-divider {
+  display:flex; align-items:center; gap:12px; margin-bottom:28px;
+}
+.login-divider::before, .login-divider::after {
+  content:''; flex:1; height:1px; background:var(--b1);
+}
+.login-divider span {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8px; color:var(--t3); letter-spacing:2px;
+}
+.field-label {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--t3); margin-bottom:6px; display:block;
+}
+.field-input {
+  width:100%; background:var(--s2); border:1px solid var(--b1);
+  color:var(--t1); font-family:'IBM Plex Mono',monospace; font-size:13px;
+  padding:10px 12px; margin-bottom:16px; border-radius:var(--r);
+  transition:.15s;
+}
+.field-input:focus { outline:none; border-color:var(--gold); }
+.login-btn {
+  width:100%; background:var(--gold); border:none; color:var(--bg);
+  font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:3px;
+  text-transform:uppercase; padding:12px; cursor:pointer;
+  border-radius:var(--r); transition:.15s; font-weight:500;
+}
+.login-btn:hover { background:var(--gold2); }
+.login-error {
+  background:rgba(184,64,64,.15); border:1px solid rgba(184,64,64,.3);
+  color:var(--red2); font-family:'IBM Plex Mono',monospace;
+  font-size:10px; letter-spacing:1px; padding:8px 12px;
+  border-radius:var(--r); margin-top:12px; display:none; text-align:center;
+}
+.login-footer {
+  margin-top:28px; text-align:center;
+  font-family:'IBM Plex Mono',monospace; font-size:8px;
+  color:var(--t3); letter-spacing:2px;
+}
+
+/* ─── CHANGE PASSWORD MODAL ─── */
+#modal-pwd {
+  position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.8);
+  display:none; align-items:center; justify-content:center;
+}
+#modal-pwd.open { display:flex; }
+.modal-box {
+  background:var(--s1); border:1px solid var(--b1);
+  border-top:2px solid var(--gold); padding:28px 32px; width:340px;
+  border-radius:var(--r); animation:fadeUp .3s ease;
+}
+.modal-title {
+  font-family:'IBM Plex Mono',monospace; font-size:10px;
+  letter-spacing:3px; text-transform:uppercase; color:var(--gold);
+  margin-bottom:20px;
+}
+.modal-btns { display:flex; gap:8px; margin-top:16px; }
+.btn-secondary {
+  flex:1; background:transparent; border:1px solid var(--b2);
+  color:var(--t2); font-family:'IBM Plex Mono',monospace; font-size:9px;
+  letter-spacing:2px; text-transform:uppercase; padding:9px;
+  cursor:pointer; border-radius:var(--r); transition:.15s;
+}
+.btn-secondary:hover { border-color:var(--t2); }
+.btn-primary {
+  flex:1; background:var(--gold); border:none; color:var(--bg);
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; padding:9px; cursor:pointer;
+  border-radius:var(--r); transition:.15s; font-weight:500;
+}
+.btn-primary:hover { background:var(--gold2); }
+
+/* ─── APP SHELL ─── */
+#screen-app { display:none; flex-direction:column; height:100vh; }
+#screen-app.active { display:flex; }
+
+/* TOP BAR */
+.topbar {
+  height:52px; min-height:52px;
+  background:var(--s1); border-bottom:1px solid var(--b1);
+  display:flex; align-items:center; padding:0 20px; gap:16px;
+  flex-shrink:0;
+}
+.topbar-logo {
+  font-family:'Playfair Display',serif;
+  font-size:18px; font-weight:900; color:var(--gold); letter-spacing:3px;
+}
+.topbar-badge {
+  font-family:'IBM Plex Mono',monospace; font-size:8px;
+  letter-spacing:2px; text-transform:uppercase;
+  background:rgba(201,169,110,.15); color:var(--gold);
+  border:1px solid rgba(201,169,110,.25); padding:3px 8px;
+  border-radius:var(--r);
+}
+.topbar-spacer { flex:1; }
+.topbar-btn {
+  background:transparent; border:1px solid var(--b1);
+  color:var(--t2); font-family:'IBM Plex Mono',monospace; font-size:9px;
+  letter-spacing:2px; text-transform:uppercase; padding:6px 12px;
+  cursor:pointer; border-radius:var(--r); transition:.15s;
+}
+.topbar-btn:hover { border-color:var(--b2); color:var(--t1); }
+.topbar-btn.danger:hover { border-color:var(--red); color:var(--red2); }
+
+/* NAV TABS */
+.navtabs {
+  display:flex; background:var(--s1); border-bottom:1px solid var(--b1);
+  padding:0 20px; gap:0; flex-shrink:0;
+}
+.navtab {
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; padding:10px 16px; cursor:pointer;
+  color:var(--t3); border-bottom:2px solid transparent; margin-bottom:-1px;
+  background:transparent; border-top:none; border-left:none; border-right:none;
+  transition:.15s; white-space:nowrap;
+}
+.navtab:hover { color:var(--t2); }
+.navtab.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+/* CONTENT AREA */
+.content-area {
+  flex:1; overflow:hidden; display:flex;
+}
+.content-scroll { flex:1; overflow-y:auto; }
+
+/* ─── PANEL: GENERADOR ─── */
+#panel-gen { display:none; flex:1; overflow:hidden; }
+#panel-gen.active { display:flex; }
+
+.gen-sidebar {
+  width:260px; min-width:260px; background:var(--s1);
+  border-right:1px solid var(--b1); overflow-y:auto; padding:16px;
+  display:flex; flex-direction:column; gap:0;
+}
+.gen-main { flex:1; overflow-y:auto; padding:28px 32px; }
+
+.gs-section { margin-bottom:18px; }
+.gs-label {
+  font-family:'IBM Plex Mono',monospace; font-size:8px;
+  letter-spacing:3px; text-transform:uppercase; color:var(--t3);
+  margin-bottom:8px; display:block;
+}
+.gs-grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+.gs-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.gs-btn {
+  background:var(--s2); border:1px solid var(--b1); color:var(--t2);
+  font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:1px;
+  padding:7px 4px; cursor:pointer; text-transform:uppercase; text-align:center;
+  transition:.15s; border-radius:var(--r); white-space:nowrap;
+}
+.gs-btn:hover { border-color:var(--b2); color:var(--t1); }
+.gs-btn.active { background:var(--gold); color:var(--bg); border-color:var(--gold); font-weight:500; }
+
+.tags-wrap { display:flex; flex-wrap:wrap; gap:4px; }
+.tag-btn {
+  background:transparent; border:1px solid var(--b1); color:var(--t3);
+  font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:1px;
+  padding:4px 8px; cursor:pointer; text-transform:uppercase;
+  transition:.15s; border-radius:var(--r);
+}
+.tag-btn:hover { border-color:var(--b2); color:var(--t2); }
+.tag-btn.active { border-color:var(--red); color:var(--red2); }
+
+.gen-big-btn {
+  width:100%; background:var(--red); border:none; color:#fff;
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:3px;
+  padding:11px; cursor:pointer; text-transform:uppercase;
+  transition:.15s; border-radius:var(--r); margin-top:4px;
+}
+.gen-big-btn:hover { background:var(--red2); }
+.gen-big-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* CASE VIEW */
+.case-header-area {
+  border-bottom:1px solid var(--b1); padding-bottom:20px; margin-bottom:22px;
+}
+.case-eyebrow {
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:3px;
+  color:var(--t3); text-transform:uppercase; margin-bottom:8px;
+  display:flex; align-items:center; gap:10px;
+}
+.pulse { width:7px; height:7px; border-radius:50%; background:var(--red); display:inline-block; animation:blink 1.5s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.case-title-text {
+  font-family:'Playfair Display',serif; font-size:34px; font-weight:900;
+  color:var(--t1); line-height:1.05; margin-bottom:12px;
+}
+.badges-row { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:14px; }
+.badge {
+  font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:1px;
+  padding:3px 8px; border-radius:var(--r); text-transform:uppercase;
+}
+.badge-c { background:rgba(61,122,82,.2); color:#5aaa7a; border:1px solid rgba(61,122,82,.3); }
+.badge-m { background:rgba(168,136,48,.2); color:#d4aa40; border:1px solid rgba(168,136,48,.3); }
+.badge-l { background:rgba(184,64,64,.2); color:var(--red2); border:1px solid rgba(184,64,64,.3); }
+.badge-fic { background:rgba(201,169,110,.15); color:var(--gold); border:1px solid rgba(201,169,110,.25); }
+.badge-ins { background:rgba(58,95,138,.2); color:#5a8ac8; border:1px solid rgba(58,95,138,.3); }
+
+.case-lead {
+  font-size:15px; color:var(--t2); line-height:1.7;
+  font-style:italic; border-left:2px solid var(--red);
+  padding-left:14px;
+}
+
+/* INNER TABS */
+.inner-tabs {
+  display:flex; border-bottom:1px solid var(--b1);
+  margin-bottom:20px; gap:0; overflow-x:auto;
+}
+.itab {
+  font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; padding:9px 14px; cursor:pointer;
+  color:var(--t3); border-bottom:2px solid transparent; margin-bottom:-1px;
+  background:transparent; border-top:none; border-left:none; border-right:none;
+  transition:.15s; white-space:nowrap;
+}
+.itab:hover { color:var(--t2); }
+.itab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.itab-content { display:none; }
+.itab-content.active { display:block; }
+
+/* SECTION BLOCKS */
+.sec-title {
+  font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:3px;
+  text-transform:uppercase; color:var(--t3); margin-bottom:10px;
+  padding-bottom:6px; border-bottom:1px solid var(--b1);
+}
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.info-card {
+  background:var(--s2); border:1px solid var(--b1); border-radius:var(--r);
+  padding:11px 14px;
+}
+.ic-label { font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--t3); margin-bottom:4px; }
+.ic-value { font-size:14px; color:var(--t1); line-height:1.5; }
+.narrative-box {
+  background:var(--s2); border:1px solid var(--b1); border-left:3px solid var(--red);
+  border-radius:var(--r); padding:16px 18px;
+  font-size:14px; line-height:1.85; color:var(--t2); margin-bottom:20px;
+}
+.diff-row { display:flex; gap:6px; align-items:center; margin-bottom:20px; }
+.diff-seg { width:18px; height:4px; border-radius:1px; background:var(--b1); }
+.ds-easy { background:var(--green); }
+.ds-med  { background:var(--yellow); }
+.ds-hard { background:var(--red); }
+.diff-lbl { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--t2); margin-left:6px; }
+
+.suspect-list { display:flex; flex-direction:column; gap:10px; }
+.suspect-card {
+  background:var(--s2); border:1px solid var(--b1); border-radius:var(--r);
+  padding:13px 15px; display:flex; gap:13px; align-items:flex-start;
+}
+.s-avatar {
+  width:42px; height:42px; min-width:42px; border-radius:var(--r);
+  background:var(--s3); border:1px solid var(--b2);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Playfair Display',serif; font-size:16px; color:var(--gold);
+}
+.s-name { font-family:'Playfair Display',serif; font-size:15px; color:var(--t1); margin-bottom:2px; }
+.s-role { font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:2px; color:var(--t3); text-transform:uppercase; margin-bottom:6px; }
+.s-desc { font-size:13px; color:var(--t2); line-height:1.6; }
+.s-coartada { font-size:12px; color:var(--t3); margin-top:5px; }
+.s-motive {
+  display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:8px;
+  letter-spacing:1px; padding:2px 7px; border-radius:var(--r);
+  text-transform:uppercase; margin-top:6px;
+  background:rgba(184,64,64,.12); color:var(--red2); border:1px solid rgba(184,64,64,.22);
+}
+
+.ev-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:18px; }
+.ev-item {
+  background:var(--s2); border:1px solid var(--b1); border-radius:var(--r);
+  padding:11px; display:flex; gap:10px; align-items:flex-start;
+}
+.ev-ico { font-size:18px; margin-top:1px; }
+.ev-name { font-size:13px; font-weight:600; color:var(--t1); margin-bottom:3px; }
+.ev-desc { font-size:12px; color:var(--t2); line-height:1.5; }
+.ev-tag {
+  display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:7px;
+  letter-spacing:1px; padding:2px 5px; border-radius:2px;
+  text-transform:uppercase; margin-top:5px;
+}
+.et-fisico { background:rgba(61,122,82,.15); color:#5aaa7a; border:1px solid rgba(61,122,82,.25); }
+.et-digital { background:rgba(58,95,138,.15); color:#5a8ac8; border:1px solid rgba(58,95,138,.25); }
+.et-testimonial { background:rgba(168,136,48,.15); color:#d4aa40; border:1px solid rgba(168,136,48,.25); }
+.et-forense { background:rgba(184,64,64,.15); color:var(--red2); border:1px solid rgba(184,64,64,.25); }
+
+.report-box {
+  background:var(--s2); border:1px solid var(--b1); border-radius:var(--r);
+  padding:13px 15px; margin-bottom:10px;
+}
+.report-lbl { font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--t3); margin-bottom:7px; }
+.report-txt { font-size:13px; color:var(--t2); line-height:1.75; }
+
+.intv-card { background:var(--s2); border:1px solid var(--b1); border-radius:var(--r); overflow:hidden; margin-bottom:12px; }
+.intv-hdr { background:var(--s3); border-bottom:1px solid var(--b1); padding:9px 13px; display:flex; align-items:center; gap:10px; }
+.intv-who { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--gold); text-transform:uppercase; }
+.intv-date { font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--t3); margin-left:auto; }
+.intv-body { padding:13px 15px; }
+.qa-pair { margin-bottom:12px; }
+.q-line { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--t3); margin-bottom:4px; }
+.q-line span { color:var(--gold); }
+.a-line { font-size:13px; color:var(--t2); line-height:1.7; padding-left:16px; border-left:2px solid var(--b2); }
+
+.audio-item {
+  background:var(--s2); border:1px solid var(--b1); border-radius:var(--r);
+  padding:11px 13px; display:flex; align-items:center; gap:12px; margin-bottom:8px;
+}
+.audio-circle {
+  width:32px; height:32px; border-radius:50%; background:var(--red);
+  border:none; color:#fff; font-size:11px; display:flex; align-items:center;
+  justify-content:center; flex-shrink:0; cursor:default;
+}
+.audio-wave-mini { flex:0 0 80px; height:20px; display:flex; align-items:center; gap:1.5px; }
+.wm { width:2.5px; border-radius:1px; background:var(--b2); }
+.audio-info-col { flex:1; }
+.audio-t { font-size:13px; color:var(--t1); margin-bottom:2px; }
+.audio-m { font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--t3); }
+.audio-trx { font-size:11px; color:var(--t3); margin-top:4px; font-style:italic; }
+
+.photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px; }
+.photo-item {
+  aspect-ratio:4/3; background:var(--s2); border:1px solid var(--b1);
+  border-radius:var(--r); overflow:hidden; position:relative;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+}
+.photo-ico { font-size:22px; opacity:.35; }
+.photo-lbl-inner { font-family:'IBM Plex Mono',monospace; font-size:7px; color:var(--t3); text-align:center; padding:0 6px; }
+.photo-overlay {
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(0,0,0,.7); padding:4px 7px;
+  font-family:'IBM Plex Mono',monospace; font-size:7px; letter-spacing:1px; color:var(--t2); text-transform:uppercase;
+}
+
+.tl-item { display:flex; gap:12px; margin-bottom:12px; align-items:flex-start; }
+.tl-time { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--gold); min-width:56px; padding-top:2px; }
+.tl-col { display:flex; flex-direction:column; align-items:center; }
+.tl-dot { width:8px; height:8px; border-radius:50%; background:var(--s2); border:2px solid var(--red); flex-shrink:0; margin-top:3px; }
+.tl-line { width:1px; flex:1; background:var(--b1); min-height:22px; }
+.tl-ev { font-size:13px; color:var(--t2); line-height:1.65; flex:1; }
+
+.sol-box { background:var(--s2); border:1px solid var(--red); border-radius:var(--r); overflow:hidden; margin-bottom:18px; }
+.sol-hdr {
+  background:rgba(184,64,64,.12); padding:12px 16px;
+  display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+}
+.sol-lbl { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:3px; color:var(--red2); text-transform:uppercase; }
+.sol-body { display:none; padding:16px; }
+.sol-body.open { display:block; }
+.culprit-nm { font-family:'Playfair Display',serif; font-size:22px; color:var(--red2); margin-bottom:10px; }
+.sol-txt { font-size:14px; color:var(--t2); line-height:1.8; }
+
+.tip-item { background:var(--s2); border:1px solid var(--b1); border-radius:var(--r); padding:11px 14px; margin-bottom:8px; }
+.tip-lbl { font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--t3); margin-bottom:5px; }
+.tip-txt { font-size:13px; color:var(--t2); line-height:1.6; }
+
+/* EXPORT BUTTON */
+.export-bar {
+  display:none; background:var(--s1); border-top:1px solid var(--b1);
+  padding:12px 20px; align-items:center; gap:12px; flex-shrink:0;
+}
+.export-bar.visible { display:flex; }
+.export-info { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--t3); letter-spacing:1px; flex:1; }
+.export-btn {
+  background:var(--gold); border:none; color:var(--bg);
+  font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:3px;
+  text-transform:uppercase; padding:10px 20px; cursor:pointer;
+  border-radius:var(--r); transition:.15s; font-weight:500;
+}
+.export-btn:hover { background:var(--gold2); }
+
+/* ─── PANEL: HISTORIAL ─── */
+#panel-hist { display:none; flex:1; overflow:hidden; }
+#panel-hist.active { display:flex; flex-direction:column; }
+.hist-content { flex:1; overflow-y:auto; padding:24px 32px; }
+.hist-grid { display:flex; flex-direction:column; gap:10px; }
+.hist-card {
+  background:var(--s1); border:1px solid var(--b1); border-radius:var(--r);
+  padding:14px 16px; display:flex; align-items:center; gap:14px;
+  cursor:pointer; transition:.15s;
+}
+.hist-card:hover { border-color:var(--b2); background:var(--s2); }
+.hist-num {
+  font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--t3);
+  min-width:36px;
+}
+.hist-info { flex:1; }
+.hist-name { font-family:'Playfair Display',serif; font-size:15px; color:var(--t1); margin-bottom:5px; }
+.hist-meta { display:flex; gap:7px; flex-wrap:wrap; }
+.hist-ts { font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--t3); margin-left:auto; }
+.hist-actions { display:flex; gap:7px; }
+.hist-btn {
+  background:transparent; border:1px solid var(--b1); color:var(--t3);
+  font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:1px;
+  text-transform:uppercase; padding:5px 10px; cursor:pointer;
+  border-radius:var(--r); transition:.15s;
+}
+.hist-btn:hover { border-color:var(--b2); color:var(--t2); }
+.hist-btn.gold:hover { border-color:var(--gold); color:var(--gold); }
+.hist-btn.danger:hover { border-color:var(--red); color:var(--red2); }
+.empty-hist {
+  text-align:center; padding:60px 20px;
+  font-family:'IBM Plex Mono',monospace; font-size:10px;
+  letter-spacing:3px; color:var(--t3); text-transform:uppercase;
+}
+
+/* ─── PANEL: CONFIGURACIÓN ─── */
+#panel-cfg { display:none; flex:1; overflow:hidden; }
+#panel-cfg.active { display:flex; }
+.cfg-content { flex:1; overflow-y:auto; padding:28px 32px; max-width:520px; }
+.cfg-section { margin-bottom:28px; }
+.cfg-title { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--t3); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--b1); }
+.cfg-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:12px; }
+.cfg-row .field-label { margin-bottom:4px; font-size:8px; }
+.cfg-row .field-input { margin-bottom:0; }
+.cfg-col { flex:1; }
+.cfg-save-btn { background:var(--gold); border:none; color:var(--bg); font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:3px; text-transform:uppercase; padding:10px 20px; cursor:pointer; border-radius:var(--r); transition:.15s; font-weight:500; }
+.cfg-save-btn:hover { background:var(--gold2); }
+.cfg-note { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--t3); margin-top:8px; line-height:1.6; }
+
+/* TOAST */
+#toast {
+  position:fixed; bottom:24px; right:24px; z-index:999;
+  background:var(--s2); border:1px solid var(--b2);
+  color:var(--t1); font-family:'IBM Plex Mono',monospace;
+  font-size:10px; letter-spacing:1px; padding:11px 18px;
+  border-radius:var(--r); opacity:0; transform:translateY(10px);
+  transition:.25s; pointer-events:none;
+}
+#toast.show { opacity:1; transform:none; }
+#toast.success { border-color:var(--green); color:#5aaa7a; }
+#toast.error { border-color:var(--red); color:var(--red2); }
+
+/* LOADING */
+#loading {
+  position:fixed; inset:0; z-index:400; background:rgba(9,9,10,.93);
+  display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px;
+}
+#loading.on { display:flex; }
+.ld-txt { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:3px; color:var(--t3); text-transform:uppercase; }
+.ld-dots { display:flex; gap:6px; }
+.ld-dot { width:6px; height:6px; border-radius:50%; background:var(--gold); animation:ldpulse 1.2s ease infinite; }
+.ld-dot:nth-child(2){animation-delay:.2s} .ld-dot:nth-child(3){animation-delay:.4s}
+@keyframes ldpulse { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-txt" id="ld-msg">Procesando...</div>
+  <div class="ld-dots"><div class="ld-dot"></div><div class="ld-dot"></div><div class="ld-dot"></div></div>
+</div>
+
+<!-- MODAL CAMBIAR CONTRASEÑA -->
+<div id="modal-pwd">
+  <div class="modal-box">
+    <div class="modal-title">Cambiar contraseña</div>
+    <label class="field-label">Contraseña actual</label>
+    <input class="field-input" type="password" id="pwd-current" placeholder="••••••••">
+    <label class="field-label">Nueva contraseña</label>
+    <input class="field-input" type="password" id="pwd-new" placeholder="••••••••">
+    <label class="field-label">Confirmar nueva</label>
+    <input class="field-input" type="password" id="pwd-confirm" placeholder="••••••••">
+    <div id="pwd-error" class="login-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closePwdModal()">Cancelar</button>
+      <button class="btn-primary" onclick="changePassword()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="screen-login">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">CASE FILE</div>
+    <div class="login-sub">Sistema Profesional · Acceso Restringido</div>
+    <div class="login-divider"><span>identificación</span></div>
+    <label class="field-label">Usuario</label>
+    <input class="field-input" type="text" id="inp-user" placeholder="admin" autocomplete="username">
+    <label class="field-label">Contraseña</label>
+    <input class="field-input" type="password" id="inp-pwd" placeholder="••••••••" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Ingresar al sistema</button>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+    <div class="login-footer">© CASE FILE PRO · Sistema privado</div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="screen-app">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <span class="topbar-logo">CASE FILE</span>
+    <span class="topbar-badge">PRO</span>
+    <div class="topbar-spacer"></div>
+    <button class="topbar-btn" onclick="openPwdModal()">🔑 Contraseña</button>
+    <button class="topbar-btn danger" onclick="doLogout()">Salir</button>
+  </div>
+
+  <!-- NAV -->
+  <div class="navtabs">
+    <button class="navtab active" id="nav-gen" onclick="switchPanel('gen')">⚡ Generador</button>
+    <button class="navtab" id="nav-hist" onclick="switchPanel('hist')">📁 Historial</button>
+    <button class="navtab" id="nav-cfg" onclick="switchPanel('cfg')">⚙ Configuración</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content-area" id="content-area">
+
+    <!-- PANEL: GENERADOR -->
+    <div id="panel-gen" class="active">
+      <div class="gen-sidebar">
+        <div class="gs-section">
+          <span class="gs-label">Tipo de caso</span>
+          <div class="gs-grid3">
+            <button class="gs-btn active" data-type="aleatorio" onclick="setOpt(this,'type')">Aleatorio</button>
+            <button class="gs-btn" data-type="ficticio" onclick="setOpt(this,'type')">Ficticio</button>
+            <button class="gs-btn" data-type="inspirado" onclick="setOpt(this,'type')">Inspirado</button>
+          </div>
+        </div>
+        <div class="gs-section">
+          <span class="gs-label">Duración</span>
+          <div class="gs-grid3">
+            <button class="gs-btn active" data-dur="aleatorio" onclick="setOpt(this,'dur')">Aleatorio</button>
+            <button class="gs-btn" data-dur="corto" onclick="setOpt(this,'dur')">Corto</button>
+            <button class="gs-btn" data-dur="mediano" onclick="setOpt(this,'dur')">Mediano</button>
+          </div>
+          <div class="gs-grid2" style="margin-top:5px">
+            <button class="gs-btn" data-dur="largo" onclick="setOpt(this,'dur')">Largo</button>
+          </div>
+        </div>
+        <div class="gs-section">
+          <span class="gs-label">Ambientación</span>
+          <div class="tags-wrap">
+            <button class="tag-btn active" data-cat="cualquiera" onclick="setCat(this)">Cualquiera</button>
+            <button class="tag-btn" data-cat="moderno" onclick="setCat(this)">Moderno</button>
+            <button class="tag-btn" data-cat="historico" onclick="setCat(this)">Histórico</button>
+            <button class="tag-btn" data-cat="noir" onclick="setCat(this)">Noir</button>
+            <button class="tag-btn" data-cat="rural" onclick="setCat(this)">Rural</button>
+            <button class="tag-btn" data-cat="urbano" onclick="setCat(this)">Urbano</button>
+            <button class="tag-btn" data-cat="costero" onclick="setCat(this)">Costero</button>
+            <button class="tag-btn" data-cat="corporativo" onclick="setCat(this)">Corporativo</button>
+          </div>
+        </div>
+        <div class="gs-section">
+          <span class="gs-label">Notas para el cliente</span>
+          <textarea id="client-note" style="width:100%;background:var(--s2);border:1px solid var(--b1);color:var(--t1);font-family:'Crimson Pro',serif;font-size:13px;padding:9px 11px;border-radius:var(--r);resize:vertical;min-height:70px;margin-bottom:8px" placeholder="Ocasión, nombre del grupo, instrucciones especiales..."></textarea>
+        </div>
+        <button class="gen-big-btn" id="gen-btn" onclick="generateCase()">▶ Generar caso</button>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="content-scroll gen-main" id="gen-main">
+          <!-- empty state -->
+          <div id="empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px;opacity:.3">
+            <div style="font-family:'Playfair Display',serif;font-size:64px;color:var(--t3)">⚿</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--t3);text-transform:uppercase;text-align:center">Configura y genera un caso<br>para comenzar</div>
+          </div>
+          <!-- case view -->
+          <div id="case-view" style="display:none">
+            <div class="case-header-area">
+              <div class="case-eyebrow">
+                <span class="pulse"></span>
+                <span id="cv-id">EXPEDIENTE #001</span>
+              </div>
+              <div class="case-title-text" id="cv-title">—</div>
+              <div class="badges-row" id="cv-badges"></div>
+              <div class="case-lead" id="cv-lead">—</div>
+            </div>
+            <div class="inner-tabs">
+              <button class="itab active" onclick="iTab('resumen',this)">Resumen</button>
+              <button class="itab" onclick="iTab('sospechosos',this)">Sospechosos</button>
+              <button class="itab" onclick="iTab('evidencias',this)">Evidencias</button>
+              <button class="itab" onclick="iTab('entrevistas',this)">Entrevistas</button>
+              <button class="itab" onclick="iTab('multimedia',this)">Multimedia</button>
+              <button class="itab" onclick="iTab('cronologia',this)">Cronología</button>
+              <button class="itab" onclick="iTab('solucion',this)">Solución</button>
+            </div>
+            <div class="itab-content active" id="it-resumen">
+              <div class="sec-title">Datos del crimen</div>
+              <div class="info-grid" id="it-infogrid"></div>
+              <div class="sec-title">Narrativa</div>
+              <div class="narrative-box" id="it-narr"></div>
+              <div class="sec-title">Dificultad</div>
+              <div class="diff-row" id="it-diff"></div>
+            </div>
+            <div class="itab-content" id="it-sospechosos">
+              <div class="sec-title">Personas de interés</div>
+              <div class="suspect-list" id="it-suspects"></div>
+            </div>
+            <div class="itab-content" id="it-evidencias">
+              <div class="sec-title">Registro de evidencias</div>
+              <div class="ev-grid" id="it-evgrid"></div>
+              <div class="sec-title">Informe forense</div>
+              <div class="report-box"><div class="report-lbl">Autopsia / Análisis técnico</div><div class="report-txt" id="it-forense"></div></div>
+            </div>
+            <div class="itab-content" id="it-entrevistas">
+              <div class="sec-title">Transcripciones</div>
+              <div id="it-interviews"></div>
+            </div>
+            <div class="itab-content" id="it-multimedia">
+              <div class="sec-title">Archivos de audio</div>
+              <div id="it-audios"></div>
+              <div class="sec-title">Fotografías</div>
+              <div class="photo-grid" id="it-photos"></div>
+              <div class="sec-title">Documentos</div>
+              <div id="it-docs"></div>
+            </div>
+            <div class="itab-content" id="it-cronologia">
+              <div class="sec-title">Línea de tiempo</div>
+              <div id="it-timeline"></div>
+            </div>
+            <div class="itab-content" id="it-solucion">
+              <div class="sol-box">
+                <div class="sol-hdr" onclick="toggleSol()">
+                  <span id="sol-ico" style="font-size:16px">🔒</span>
+                  <span class="sol-lbl">Solución del caso — clic para revelar</span>
+                </div>
+                <div class="sol-body" id="sol-body">
+                  <div class="culprit-nm" id="sol-culprit"></div>
+                  <div class="sol-txt" id="sol-txt"></div>
+                </div>
+              </div>
+              <div id="sol-tips"></div>
+            </div>
+          </div>
+        </div>
+        <!-- EXPORT BAR -->
+        <div class="export-bar" id="export-bar">
+          <div class="export-info" id="export-info">Caso listo para exportar</div>
+          <button class="export-btn" onclick="exportCase()">⬇ Exportar para cliente</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL: HISTORIAL -->
+    <div id="panel-hist">
+      <div class="hist-content">
+        <div style="margin-bottom:18px">
+          <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--t1);margin-bottom:4px">Historial de casos</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--t3);letter-spacing:2px" id="hist-count">0 casos generados</div>
+        </div>
+        <div class="hist-grid" id="hist-grid">
+          <div class="empty-hist">Sin casos en el historial</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL: CONFIG -->
+    <div id="panel-cfg">
+      <div class="cfg-content">
+        <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--t1);margin-bottom:20px">Configuración</div>
+
+        <div class="cfg-section">
+          <div class="cfg-title">Datos del negocio (aparecen en exportaciones)</div>
+          <label class="field-label">Nombre del negocio</label>
+          <input class="field-input" type="text" id="cfg-biz" placeholder="Case File Experiences" style="margin-bottom:12px">
+          <label class="field-label">Email de contacto</label>
+          <input class="field-input" type="email" id="cfg-email" placeholder="hola@tucasefile.com" style="margin-bottom:12px">
+          <label class="field-label">Sitio web / redes</label>
+          <input class="field-input" type="text" id="cfg-web" placeholder="@tucasefile / www.tucasefile.com" style="margin-bottom:16px">
+          <button class="cfg-save-btn" onclick="saveCfg()">Guardar datos</button>
+        </div>
+
+        <div class="cfg-section">
+          <div class="cfg-title">Seguridad</div>
+          <button class="cfg-save-btn" onclick="openPwdModal()" style="background:var(--s2);color:var(--t1);border:1px solid var(--b2);">🔑 Cambiar contraseña</button>
+          <div class="cfg-note" style="margin-top:10px">Tu usuario y contraseña se almacenan localmente en este navegador. Para mayor seguridad, usa este sistema siempre desde el mismo dispositivo.</div>
+        </div>
+
+        <div class="cfg-section">
+          <div class="cfg-title">Datos guardados</div>
+          <div class="cfg-note" id="storage-info">Calculando...</div>
+          <button class="cfg-save-btn" style="margin-top:12px;background:rgba(184,64,64,.2);color:var(--red2);border:1px solid rgba(184,64,64,.3)" onclick="clearAll()">🗑 Borrar todo el historial</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /screen-app -->
+
+<script>
+// ═══════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════
+const DEFAULT_USER = 'admin';
+const DEFAULT_PASS_KEY = 'cfpro_password';
+
+function getPass() {
+  return localStorage.getItem(DEFAULT_PASS_KEY) || 'casefile2025';
+}
+
+document.getElementById('inp-pwd').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('inp-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogin() {
+  const u = document.getElementById('inp-user').value.trim();
+  const p = document.getElementById('inp-pwd').value;
+  if(u === DEFAULT_USER && p === getPass()) {
+    localStorage.setItem('cfpro_session', 'true');
+    document.getElementById('screen-login').style.display = 'none';
+    document.getElementById('screen-app').classList.add('active');
+    init();
+  } else {
+    const err = document.getElementById('login-error');
+    err.style.display = 'block';
+    document.getElementById('inp-pwd').value = '';
+    setTimeout(() => err.style.display = 'none', 3000);
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('cfpro_session');
+  location.reload();
+}
+
+function openPwdModal() {
+  document.getElementById('modal-pwd').classList.add('open');
+  document.getElementById('pwd-current').value = '';
+  document.getElementById('pwd-new').value = '';
+  document.getElementById('pwd-confirm').value = '';
+  document.getElementById('pwd-error').style.display = 'none';
+}
+function closePwdModal() { document.getElementById('modal-pwd').classList.remove('open'); }
+
+function changePassword() {
+  const cur = document.getElementById('pwd-current').value;
+  const nw = document.getElementById('pwd-new').value;
+  const cf = document.getElementById('pwd-confirm').value;
+  const err = document.getElementById('pwd-error');
+  if(cur !== getPass()) { err.textContent='Contraseña actual incorrecta'; err.style.display='block'; return; }
+  if(nw.length < 6) { err.textContent='Mínimo 6 caracteres'; err.style.display='block'; return; }
+  if(nw !== cf) { err.textContent='Las contraseñas no coinciden'; err.style.display='block'; return; }
+  localStorage.setItem(DEFAULT_PASS_KEY, nw);
+  closePwdModal();
+  toast('Contraseña actualizada', 'success');
+}
+
+// check session on load
+window.addEventListener('load', () => {
+  if(localStorage.getItem('cfpro_session') === 'true') {
+    document.getElementById('screen-login').style.display = 'none';
+    document.getElementById('screen-app').classList.add('active');
+    init();
+  }
+});
+
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+let opts = { type:'aleatorio', dur:'aleatorio', cat:'cualquiera' };
+let caseHistory = [];
+let currentCase = null;
+let solOpen = false;
+let caseN = 0;
+let bizCfg = {};
+
+function init() {
+  loadStorage();
+  renderHist();
+  loadCfg();
+  updateStorageInfo();
+}
+
+function loadStorage() {
+  try {
+    caseHistory = JSON.parse(localStorage.getItem('cfpro_cases') || '[]');
+    caseN = caseHistory.length ? Math.max(...caseHistory.map(c=>c._n)) : 0;
+  } catch(e) { caseHistory = []; }
+}
+
+function saveStorage() {
+  localStorage.setItem('cfpro_cases', JSON.stringify(caseHistory));
+  updateStorageInfo();
+}
+
+function updateStorageInfo() {
+  const bytes = new Blob([localStorage.getItem('cfpro_cases')||'']).size;
+  document.getElementById('storage-info').textContent =
+    `${caseHistory.length} caso(s) guardados · ${(bytes/1024).toFixed(1)} KB usados`;
+}
+
+function loadCfg() {
+  bizCfg = JSON.parse(localStorage.getItem('cfpro_biz') || '{}');
+  document.getElementById('cfg-biz').value = bizCfg.name || '';
+  document.getElementById('cfg-email').value = bizCfg.email || '';
+  document.getElementById('cfg-web').value = bizCfg.web || '';
+}
+
+function saveCfg() {
+  bizCfg = {
+    name: document.getElementById('cfg-biz').value,
+    email: document.getElementById('cfg-email').value,
+    web: document.getElementById('cfg-web').value
+  };
+  localStorage.setItem('cfpro_biz', JSON.stringify(bizCfg));
+  toast('Configuración guardada', 'success');
+}
+
+function clearAll() {
+  if(!confirm('¿Borrar todos los casos del historial? Esta acción es irreversible.')) return;
+  caseHistory = [];
+  localStorage.removeItem('cfpro_cases');
+  renderHist();
+  updateStorageInfo();
+  toast('Historial borrado');
+}
+
+// ═══════════════════════════════════════
+//  NAV / PANELS
+// ═══════════════════════════════════════
+function switchPanel(id) {
+  ['gen','hist','cfg'].forEach(p => {
+    document.getElementById(`panel-${p}`).classList.toggle('active', p===id);
+    document.getElementById(`nav-${p}`).classList.toggle('active', p===id);
+  });
+  if(id==='hist') renderHist();
+  if(id==='cfg') { loadCfg(); updateStorageInfo(); }
+}
+
+// ═══════════════════════════════════════
+//  GEN OPTIONS
+// ═══════════════════════════════════════
+function setOpt(btn, field) {
+  btn.closest('[class^="gs-grid"], .gs-section').querySelectorAll('.gs-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  opts[field] = btn.dataset[field] || btn.dataset.dur || btn.dataset.type;
+}
+function setCat(btn) {
+  if(btn.dataset.cat==='cualquiera') {
+    document.querySelectorAll('.tag-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); opts.cat='cualquiera';
+  } else {
+    document.querySelector('[data-cat="cualquiera"]').classList.remove('active');
+    btn.classList.toggle('active');
+    const a=[...document.querySelectorAll('.tag-btn.active')].map(b=>b.dataset.cat);
+    opts.cat = a.length ? a.join(',') : 'cualquiera';
+    if(!a.length) document.querySelector('[data-cat="cualquiera"]').classList.add('active');
+  }
+}
+
+// ═══════════════════════════════════════
+//  GENERATE
+// ═══════════════════════════════════════
+const LD_MSGS = [
+  'Abriendo expediente...','Interrogando testigos...',
+  'Analizando huellas...','Revisando coartadas...',
+  'Clasificando evidencias...','Sellando el archivo...'
+];
+
+async function generateCase() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  showLoading(LD_MSGS[0]);
+  let mi=0;
+  const iv = setInterval(()=>{ mi=(mi+1)%LD_MSGS.length; setLoadMsg(LD_MSGS[mi]); }, 1800);
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:4000,
+        messages:[{ role:'user', content:buildPrompt() }]
+      })
+    });
+    const data = await r.json();
+    const raw = data.content[0].text;
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const c = JSON.parse(clean);
+    caseN++;
+    c._n = caseN;
+    c._ts = new Date().toLocaleString('es',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    c._note = document.getElementById('client-note').value;
+    caseHistory.unshift(c);
+    saveStorage();
+    renderHist();
+    displayCase(c);
+  } catch(err) {
+    console.error(err);
+    toast('Error generando el caso. Intenta de nuevo.','error');
+  } finally {
+    clearInterval(iv);
+    hideLoading();
+    btn.disabled=false;
+  }
+}
+
+function buildPrompt() {
+  const tMap = { aleatorio:'aleatorio (puede ser ficticio o basado en hechos reales)', ficticio:'completamente ficticio', inspirado:'inspirado en casos reales con nombres y detalles cambiados' };
+  const dMap = { aleatorio:'aleatoria (elige libremente entre corto/mediano/largo)', corto:'CORTA — 2-3 sospechosos, 4-6 evidencias, caso simple y rápido (~45 min de juego)', mediano:'MEDIANA — 4-5 sospechosos, 8-10 evidencias, un giro inesperado (~90 min de juego)', largo:'LARGA — 6-8 sospechosos, 12+ evidencias, conspiración compleja y múltiples subtramas (~180 min de juego)' };
+  return `Eres un diseñador profesional de juegos de misterio para eventos y empresas. Genera un caso de asesinato detallado, jugable y creíble.
+
+PARÁMETROS:
+- Tipo: ${tMap[opts.type]}
+- Complejidad: ${dMap[opts.dur]}
+- Ambientación: ${opts.cat==='cualquiera'?'Elige la más interesante':opts.cat}
+
+REGLAS:
+- El caso debe ser RESOLUBLE con las pistas dadas
+- El culpable tiene motivo claro, oportunidad y medios
+- Las entrevistas incluyen contradicciones detectables por el jugador
+- Mezcla pistas reales con red herrings (pistas falsas)
+- Usa nombres FICTICIOS aunque te inspires en casos reales
+- Tono: serio, atmosférico, profesional
+- El caso es para juego en grupo, no violento/gore en exceso
+
+Responde ÚNICAMENTE con JSON válido sin markdown ni comentarios:
+
+{
+  "titulo": "Título dramático",
+  "tipo": "ficticio|inspirado",
+  "duracion": "corto|mediano|largo",
+  "ambientacion": "descripción breve (ej: Buenos Aires, 1950)",
+  "fecha_crimen": "fecha y hora exacta",
+  "lugar": "lugar específico del crimen",
+  "victima": "nombre completo",
+  "victima_perfil": "quién era, 1-2 oraciones",
+  "metodo": "causa y método de muerte",
+  "subtitulo": "Una frase que captura el misterio",
+  "narrativa": "3-4 oraciones atmosféricas describiendo el caso",
+  "dificultad": "fácil|media|difícil",
+  "sospechosos": [
+    { "nombre":"", "rol":"relación con víctima", "descripcion":"física y personalidad", "coartada":"su coartada inicial", "motive":"motivo potencial", "culpable":false }
+  ],
+  "evidencias": [
+    { "nombre":"", "tipo":"fisico|digital|testimonial|forense", "descripcion":"qué es y por qué importa", "icono":"emoji relevante", "red_herring":false }
+  ],
+  "informe_forense": "Párrafo técnico con datos de autopsia/análisis",
+  "entrevistas": [
+    { "entrevistado":"", "fecha":"", "qa":[ { "pregunta":"", "respuesta":"" } ] }
+  ],
+  "audios": [
+    { "titulo":"", "tipo":"llamada|mensaje|grabacion|ambiente", "duracion":"MM:SS", "transcripcion":"resumen de lo que se escucha" }
+  ],
+  "fotos": [
+    { "id":"FOTO-01", "titulo":"", "descripcion":"detalle visual", "relevancia":"importancia para el caso" }
+  ],
+  "documentos": [
+    { "titulo":"", "tipo":"carta|contrato|email|registro|recibo", "contenido":"resumen del contenido relevante" }
+  ],
+  "cronologia": [ { "hora":"HH:MM", "evento":"descripción" } ],
+  "solucion": {
+    "culpable":"nombre",
+    "explicacion":"Cómo y por qué lo hizo, qué evidencias lo prueban, cómo interpretar las contradicciones. Mínimo 4 oraciones."
+  },
+  "pistas_clave": ["pista 1 para guiar al jugador","pista 2","pista 3"]
+}`;
+}
+
+// ═══════════════════════════════════════
+//  DISPLAY CASE
+// ═══════════════════════════════════════
+function displayCase(c) {
+  currentCase = c; solOpen = false;
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('case-view').style.display='block';
+  document.getElementById('export-bar').classList.add('visible');
+
+  document.getElementById('cv-id').textContent = `EXPEDIENTE #${String(c._n).padStart(3,'0')} · ${c._ts}`;
+  document.getElementById('cv-title').textContent = c.titulo;
+  document.getElementById('cv-lead').textContent = c.subtitulo;
+  document.getElementById('export-info').textContent = `"${c.titulo}" · ${c.duracion} · listo para exportar`;
+
+  const bd = document.getElementById('cv-badges');
+  const durCls = {corto:'badge-c',mediano:'badge-m',largo:'badge-l'};
+  bd.innerHTML = `<span class="badge ${durCls[c.duracion]||'badge-m'}">${c.duracion}</span>
+    <span class="badge ${c.tipo==='ficticio'?'badge-fic':'badge-ins'}">${c.tipo}</span>
+    <span class="badge" style="background:rgba(58,95,138,.2);color:#5a8ac8;border:1px solid rgba(58,95,138,.3)">${c.ambientacion}</span>`;
+
+  // Resumen
+  document.getElementById('it-infogrid').innerHTML = [
+    ['Víctima', `${c.victima}<br><span style="color:var(--t3);font-size:12px">${c.victima_perfil}</span>`],
+    ['Lugar del crimen', c.lugar],
+    ['Fecha / Hora', c.fecha_crimen],
+    ['Causa de muerte', c.metodo]
+  ].map(([l,v])=>`<div class="info-card"><div class="ic-label">${l}</div><div class="ic-value">${v}</div></div>`).join('');
+  document.getElementById('it-narr').textContent = c.narrativa;
+
+  const dMap = {fácil:[5,0,0,'FÁCIL'],media:[3,2,0,'MEDIA'],difícil:[1,1,3,'DIFÍCIL']};
+  const [e,m,h,lbl] = dMap[c.dificultad]||dMap['media'];
+  let bars='';
+  for(let i=0;i<e;i++) bars+=`<div class="diff-seg ds-easy"></div>`;
+  for(let i=0;i<m;i++) bars+=`<div class="diff-seg ds-med"></div>`;
+  for(let i=0;i<h;i++) bars+=`<div class="diff-seg ds-hard"></div>`;
+  for(let i=0;i<5-e-m-h;i++) bars+=`<div class="diff-seg"></div>`;
+  document.getElementById('it-diff').innerHTML = bars+`<span class="diff-lbl">${lbl}</span>`;
+
+  // Suspects
+  document.getElementById('it-suspects').innerHTML = (c.sospechosos||[]).map(s=>`
+    <div class="suspect-card">
+      <div class="s-avatar">${s.nombre.charAt(0)}</div>
+      <div style="flex:1">
+        <div class="s-name">${s.nombre}</div>
+        <div class="s-role">${s.rol}</div>
+        <div class="s-desc">${s.descripcion}</div>
+        <div class="s-coartada"><span style="color:var(--t3);font-size:11px">COARTADA: </span>${s.coartada}</div>
+        <span class="s-motive">Motivo potencial: ${s.motive}</span>
+      </div>
+    </div>`).join('');
+
+  // Evidence
+  document.getElementById('it-evgrid').innerHTML = (c.evidencias||[]).map(e=>`
+    <div class="ev-item">
+      <div class="ev-ico">${e.icono||'🔍'}</div>
+      <div>
+        <div class="ev-name">${e.nombre}</div>
+        <div class="ev-desc">${e.descripcion}</div>
+        <span class="ev-tag et-${e.tipo}">${e.tipo}</span>
+      </div>
+    </div>`).join('');
+  document.getElementById('it-forense').textContent = c.informe_forense||'';
+
+  // Interviews
+  document.getElementById('it-interviews').innerHTML = (c.entrevistas||[]).map(en=>`
+    <div class="intv-card">
+      <div class="intv-hdr">
+        <span class="intv-who">${en.entrevistado}</span>
+        <span class="intv-date">${en.fecha}</span>
+      </div>
+      <div class="intv-body">
+        ${(en.qa||[]).map(q=>`<div class="qa-pair">
+          <div class="q-line"><span>DETECTIVE:</span> ${q.pregunta}</div>
+          <div class="a-line">${q.respuesta}</div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  // Audio
+  document.getElementById('it-audios').innerHTML = (c.audios||[]).map(a=>{
+    const bars = Array.from({length:24},()=>`<div class="wm" style="height:${3+Math.floor(Math.random()*16)}px"></div>`).join('');
+    return `<div class="audio-item">
+      <div class="audio-circle">▶</div>
+      <div class="audio-wave-mini">${bars}</div>
+      <div class="audio-info-col">
+        <div class="audio-t">${a.titulo}</div>
+        <div class="audio-m">${a.tipo.toUpperCase()} · ${a.duracion}</div>
+        <div class="audio-trx">"${a.transcripcion}"</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Photos
+  document.getElementById('it-photos').innerHTML = (c.fotos||[]).map(f=>`
+    <div class="photo-item" title="${f.descripcion}">
+      <div class="photo-ico">📷</div>
+      <div class="photo-lbl-inner">${f.titulo}</div>
+      <div class="photo-overlay">${f.id}</div>
+    </div>`).join('');
+
+  // Docs
+  document.getElementById('it-docs').innerHTML = (c.documentos||[]).map(d=>`
+    <div class="report-box">
+      <div class="report-lbl">📄 ${d.titulo} <span style="color:var(--t3)">[${d.tipo}]</span></div>
+      <div class="report-txt">${d.contenido}</div>
+    </div>`).join('');
+
+  // Timeline
+  document.getElementById('it-timeline').innerHTML = (c.cronologia||[]).map((ev,i,arr)=>`
+    <div class="tl-item">
+      <div class="tl-time">${ev.hora}</div>
+      <div class="tl-col">
+        <div class="tl-dot"></div>
+        ${i<arr.length-1?'<div class="tl-line"></div>':''}
+      </div>
+      <div class="tl-ev">${ev.evento}</div>
+    </div>`).join('');
+
+  // Solution
+  document.getElementById('sol-body').classList.remove('open');
+  document.getElementById('sol-ico').textContent='🔒';
+  document.getElementById('sol-culprit').textContent='';
+  document.getElementById('sol-txt').textContent='';
+  document.getElementById('sol-tips').innerHTML = (c.pistas_clave||[]).map((p,i)=>`
+    <div class="tip-item">
+      <div class="tip-lbl">Pista ${i+1}</div>
+      <div class="tip-txt">${p}</div>
+    </div>`).join('');
+
+  // Reset inner tabs
+  document.querySelectorAll('.itab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.itab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.itab').classList.add('active');
+  document.getElementById('it-resumen').classList.add('active');
+  document.getElementById('gen-main').scrollTop=0;
+}
+
+function iTab(id,btn) {
+  document.querySelectorAll('.itab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.itab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('it-'+id).classList.add('active');
+}
+
+function toggleSol() {
+  solOpen=!solOpen;
+  document.getElementById('sol-body').classList.toggle('open',solOpen);
+  document.getElementById('sol-ico').textContent=solOpen?'🔓':'🔒';
+  if(solOpen && currentCase) {
+    document.getElementById('sol-culprit').textContent=`Culpable: ${currentCase.solucion.culpable}`;
+    document.getElementById('sol-txt').textContent=currentCase.solucion.explicacion;
+  }
+}
+
+// ═══════════════════════════════════════
+//  HISTORIAL
+// ═══════════════════════════════════════
+function renderHist() {
+  const g = document.getElementById('hist-grid');
+  document.getElementById('hist-count').textContent = `${caseHistory.length} caso(s) generado(s)`;
+  if(!caseHistory.length){ g.innerHTML='<div class="empty-hist">Sin casos en el historial</div>'; return; }
+  const durCls={corto:'badge-c',mediano:'badge-m',largo:'badge-l'};
+  g.innerHTML = caseHistory.map(c=>`
+    <div class="hist-card">
+      <div class="hist-num">#${String(c._n).padStart(3,'0')}</div>
+      <div class="hist-info">
+        <div class="hist-name">${c.titulo}</div>
+        <div class="hist-meta">
+          <span class="badge ${durCls[c.duracion]||'badge-m'}">${c.duracion}</span>
+          <span class="badge ${c.tipo==='ficticio'?'badge-fic':'badge-ins'}">${c.tipo}</span>
+          <span class="badge" style="background:rgba(58,95,138,.2);color:#5a8ac8;border:1px solid rgba(58,95,138,.3)">${c.ambientacion}</span>
+        </div>
+      </div>
+      <div class="hist-ts">${c._ts}</div>
+      <div class="hist-actions">
+        <button class="hist-btn gold" onclick="openFromHist(${c._n})">Ver</button>
+        <button class="hist-btn gold" onclick="exportFromHist(${c._n})">Exportar</button>
+        <button class="hist-btn danger" onclick="deleteCase(${c._n})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function openFromHist(n) {
+  const c = caseHistory.find(x=>x._n===n);
+  if(!c) return;
+  switchPanel('gen');
+  displayCase(c);
+}
+
+function exportFromHist(n) {
+  const c = caseHistory.find(x=>x._n===n);
+  if(c) exportCaseData(c);
+}
+
+function deleteCase(n) {
+  if(!confirm('¿Eliminar este caso del historial?')) return;
+  caseHistory = caseHistory.filter(x=>x._n!==n);
+  saveStorage();
+  renderHist();
+  toast('Caso eliminado');
+}
+
+// ═══════════════════════════════════════
+//  EXPORT — HTML COMPLETO PARA CLIENTE
+// ═══════════════════════════════════════
+function exportCase() { if(currentCase) exportCaseData(currentCase); }
+
+function exportCaseData(c) {
+  showLoading('Generando archivo para cliente...');
+  setTimeout(()=>{
+    const html = buildExportHTML(c);
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url;
+    a.download = `CaseFile_${String(c._n).padStart(3,'0')}_${c.titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g,'').replace(/\s+/g,'_').substring(0,40)}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    hideLoading();
+    toast('Archivo exportado correctamente', 'success');
+  }, 600);
+}
+
+function buildExportHTML(c) {
+  const biz = bizCfg;
+  const note = c._note ? `<div class="client-note"><div class="cn-title">📋 Nota del organizador</div><div class="cn-body">${c._note}</div></div>` : '';
+
+  const suspects = (c.sospechosos||[]).map(s=>`
+    <div class="s-card">
+      <div class="s-ava">${s.nombre.charAt(0)}</div>
+      <div class="s-body">
+        <div class="s-nm">${s.nombre}</div>
+        <div class="s-rl">${s.rol}</div>
+        <p>${s.descripcion}</p>
+        <p><span class="lbl">Coartada: </span>${s.coartada}</p>
+        <div class="motive-pill">Motivo potencial: ${s.motive}</div>
+      </div>
+    </div>`).join('');
+
+  const evidences = (c.evidencias||[]).map(e=>`
+    <div class="ev-card">
+      <span class="ev-ico">${e.icono||'🔍'}</span>
+      <div>
+        <div class="ev-nm">${e.nombre}</div>
+        <div class="ev-ds">${e.descripcion}</div>
+        <div class="etag etag-${e.tipo}">${e.tipo}</div>
+      </div>
+    </div>`).join('');
+
+  const interviews = (c.entrevistas||[]).map(en=>`
+    <div class="intv">
+      <div class="intv-head">${en.entrevistado} <span class="intv-dt">${en.fecha}</span></div>
+      <div class="intv-body">
+        ${(en.qa||[]).map(q=>`
+          <div class="qa"><div class="q"><b>Detective:</b> ${q.pregunta}</div>
+          <div class="a">${q.respuesta}</div></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  const audios = (c.audios||[]).map(a=>`
+    <div class="media-item">
+      <div class="media-ico">🎙</div>
+      <div>
+        <div class="media-title">${a.titulo}</div>
+        <div class="media-meta">${a.tipo.toUpperCase()} · ${a.duracion}</div>
+        <div class="media-body"><em>"${a.transcripcion}"</em></div>
+      </div>
+    </div>`).join('');
+
+  const photos = (c.fotos||[]).map(f=>`
+    <div class="photo-card">
+      <div class="photo-ph">📷</div>
+      <div class="photo-id">${f.id}</div>
+      <div class="photo-tl">${f.titulo}</div>
+      <div class="photo-ds">${f.descripcion}</div>
+      <div class="photo-rv"><b>Relevancia:</b> ${f.relevancia}</div>
+    </div>`).join('');
+
+  const docs = (c.documentos||[]).map(d=>`
+    <div class="doc-card">
+      <div class="doc-title">📄 ${d.titulo} <span class="doc-type">[${d.tipo}]</span></div>
+      <div class="doc-body">${d.contenido}</div>
+    </div>`).join('');
+
+  const tl = (c.cronologia||[]).map((ev,i,arr)=>`
+    <div class="tl-row">
+      <div class="tl-time">${ev.hora}</div>
+      <div class="tl-mid"><div class="tl-dot2"></div>${i<arr.length-1?'<div class="tl-line2"></div>':''}</div>
+      <div class="tl-ev">${ev.evento}</div>
+    </div>`).join('');
+
+  const durCl = {corto:'corto',mediano:'mediano',largo:'largo'};
+  const tipoCl = {ficticio:'ficticio',inspirado:'inspirado'};
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CASE FILE — ${c.titulo}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f5f1eb;color:#1a1814;font-family:'Crimson Pro',serif;font-size:15px;line-height:1.7}
+.page{max-width:860px;margin:0 auto;padding:48px 40px}
+/* HEADER */
+.doc-header{border-bottom:3px solid #1a1814;padding-bottom:24px;margin-bottom:32px;display:flex;justify-content:space-between;align-items:flex-end}
+.doc-logo{font-family:'Playfair Display',serif;font-weight:900;font-size:26px;letter-spacing:4px;color:#1a1814}
+.doc-biz{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#666;letter-spacing:1px;line-height:1.8}
+/* CASE TITLE */
+.case-block{margin-bottom:36px;border-left:4px solid #b84040;padding-left:20px}
+.case-n{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#999;margin-bottom:8px}
+.case-tl{font-family:'Playfair Display',serif;font-size:38px;font-weight:900;line-height:1.05;color:#1a1814;margin-bottom:12px}
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;padding:3px 10px;border-radius:2px;text-transform:uppercase;border:1px solid}
+.badge.corto{background:#e8f4ec;color:#2d6b3d;border-color:#a8d4b4}
+.badge.mediano{background:#fef6e4;color:#8b6914;border-color:#e8c97a}
+.badge.largo{background:#fdeaea;color:#8b2020;border-color:#e8a0a0}
+.badge.ficticio{background:#fdf8f0;color:#8b6020;border-color:#d4a860}
+.badge.inspirado{background:#edf3fb;color:#204480;border-color:#90b4e0}
+.case-lead{font-size:16px;color:#555;font-style:italic}
+/* CLIENT NOTE */
+.client-note{background:#fffef0;border:1px solid #e0d080;border-radius:3px;padding:14px 18px;margin-bottom:28px}
+.cn-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#998840;margin-bottom:6px}
+.cn-body{font-size:14px;color:#555;line-height:1.7}
+/* SECTIONS */
+.section{margin-bottom:36px}
+.sec-hdr{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#999;margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid #d0ccc8}
+/* INFO GRID */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.ic{background:#fff;border:1px solid #ddd;border-radius:2px;padding:12px 14px}
+.ic-l{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:4px}
+.ic-v{font-size:14px;color:#1a1814}
+/* NARRATIVE */
+.narr{background:#fff;border-left:3px solid #b84040;padding:16px 18px;font-size:15px;line-height:1.85;color:#444;border-radius:0 2px 2px 0;margin-bottom:16px}
+/* DIFFICULTY */
+.diff-row{display:flex;gap:5px;align-items:center;margin-bottom:4px}
+.ds{width:20px;height:5px;border-radius:1px;background:#e0ddd8}
+.ds.easy{background:#3d7a52}.ds.med{background:#a88830}.ds.hard{background:#b84040}
+.diff-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#666;margin-left:6px}
+/* SUSPECTS */
+.s-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:14px 16px;display:flex;gap:14px;margin-bottom:10px}
+.s-ava{width:44px;height:44px;min-width:44px;background:#f5f1eb;border:1px solid #ddd;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:18px;color:#b84040}
+.s-nm{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#1a1814;margin-bottom:2px}
+.s-rl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:7px}
+.s-body p{font-size:13px;color:#555;margin-bottom:5px}
+.lbl{color:#999;font-size:12px}
+.motive-pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;padding:3px 9px;background:#fdeaea;color:#8b2020;border:1px solid #e8a0a0;border-radius:2px;text-transform:uppercase;margin-top:4px}
+/* EVIDENCE */
+.ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
+.ev-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:11px;display:flex;gap:10px}
+.ev-ico{font-size:20px;margin-top:1px}
+.ev-nm{font-size:13px;font-weight:600;color:#1a1814;margin-bottom:3px}
+.ev-ds{font-size:12px;color:#555;line-height:1.5}
+.etag{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1px;padding:2px 6px;border-radius:2px;text-transform:uppercase;margin-top:5px;border:1px solid}
+.etag-fisico{background:#e8f4ec;color:#2d6b3d;border-color:#a8d4b4}
+.etag-digital{background:#edf3fb;color:#204480;border-color:#90b4e0}
+.etag-testimonial{background:#fef6e4;color:#8b6914;border-color:#e8c97a}
+.etag-forense{background:#fdeaea;color:#8b2020;border-color:#e8a0a0}
+/* REPORT */
+.rbox{background:#fff;border:1px solid #ddd;border-radius:2px;padding:14px 16px;margin-bottom:10px}
+.rlbl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:7px}
+.rtxt{font-size:13px;color:#555;line-height:1.75}
+/* INTERVIEWS */
+.intv{background:#fff;border:1px solid #ddd;border-radius:2px;overflow:hidden;margin-bottom:12px}
+.intv-head{background:#f5f1eb;border-bottom:1px solid #ddd;padding:9px 14px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#8b6020;text-transform:uppercase;display:flex;justify-content:space-between}
+.intv-dt{color:#999;font-weight:300}
+.intv-body{padding:13px 15px}
+.qa{margin-bottom:12px}
+.q{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#999;margin-bottom:5px}
+.q b{color:#b84040}
+.a{font-size:13px;color:#555;line-height:1.7;padding-left:14px;border-left:2px solid #ddd}
+/* MEDIA */
+.media-item{background:#fff;border:1px solid #ddd;border-radius:2px;padding:12px 14px;display:flex;gap:12px;margin-bottom:8px}
+.media-ico{font-size:22px}
+.media-title{font-size:13px;font-weight:600;color:#1a1814;margin-bottom:2px}
+.media-meta{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#999;margin-bottom:4px}
+.media-body{font-size:12px;color:#666}
+/* PHOTOS */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.photo-card{background:#fff;border:1px solid #ddd;border-radius:2px;overflow:hidden}
+.photo-ph{height:90px;background:#f0ece4;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.4}
+.photo-id{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;background:#1a1814;color:#f5f1eb;padding:4px 8px;text-transform:uppercase}
+.photo-tl{padding:6px 8px 2px;font-size:12px;font-weight:600;color:#1a1814}
+.photo-ds{padding:0 8px 4px;font-size:11px;color:#666}
+.photo-rv{padding:0 8px 8px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:5px;margin-top:3px}
+/* DOCS */
+.doc-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:13px 15px;margin-bottom:8px}
+.doc-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;color:#555;margin-bottom:7px;text-transform:uppercase}
+.doc-type{color:#999}
+.doc-body{font-size:13px;color:#555;line-height:1.7}
+/* TIMELINE */
+.tl-row{display:flex;gap:12px;margin-bottom:10px}
+.tl-time{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#b84040;min-width:55px;padding-top:2px}
+.tl-mid{display:flex;flex-direction:column;align-items:center}
+.tl-dot2{width:8px;height:8px;border-radius:50%;background:#fff;border:2px solid #b84040;flex-shrink:0;margin-top:3px}
+.tl-line2{width:1px;flex:1;background:#ddd;min-height:20px}
+.tl-ev{font-size:13px;color:#555;line-height:1.65;flex:1}
+/* SOLUTION BOX */
+.sol-sect{background:#fff;border:2px solid #b84040;border-radius:3px;overflow:hidden;page-break-inside:avoid}
+.sol-hdr2{background:#fdeaea;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.sol-lbl2{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#8b2020}
+.sol-bd{padding:18px}
+.cul-nm{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:#b84040;margin-bottom:10px}
+.sol-exp{font-size:14px;color:#444;line-height:1.8}
+/* TIPS */
+.tip-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:11px 14px;margin-bottom:8px}
+.tip-lbl2{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:5px}
+.tip-txt2{font-size:13px;color:#555;line-height:1.6}
+/* FOOTER */
+.doc-footer{margin-top:48px;padding-top:20px;border-top:1px solid #d0ccc8;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;letter-spacing:2px;color:#999}
+.footer-info{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#bbb;letter-spacing:1px;text-align:right;line-height:1.8}
+/* CONFIDENTIAL STAMP */
+.stamp{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#b84040;border:2px solid #b84040;display:inline-block;padding:4px 12px;border-radius:2px;opacity:.6;margin-top:8px;transform:rotate(-2deg)}
+@media print{body{background:#fff}.page{padding:24px 20px}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<div class="doc-header">
+  <div>
+    <div class="doc-logo">CASE FILE</div>
+    <div class="stamp">Expediente Confidencial</div>
+  </div>
+  ${biz.name||biz.email||biz.web?`<div class="doc-biz">${biz.name?`<div><b>${biz.name}</b></div>`:''}${biz.email?`<div>${biz.email}</div>`:''}${biz.web?`<div>${biz.web}</div>`:''}</div>`:''}
+</div>
+
+<!-- CASE TITLE -->
+<div class="case-block">
+  <div class="case-n">Expediente #${String(c._n).padStart(3,'0')} · Generado: ${c._ts}</div>
+  <div class="case-tl">${c.titulo}</div>
+  <div class="badge-row">
+    <span class="badge ${c.duracion}">${c.duracion.toUpperCase()}</span>
+    <span class="badge ${c.tipo}">${c.tipo.toUpperCase()}</span>
+    <span class="badge" style="background:#edf3fb;color:#204480;border-color:#90b4e0">${c.ambientacion}</span>
+  </div>
+  <div class="case-lead">${c.subtitulo}</div>
+</div>
+
+${note}
+
+<!-- RESUMEN -->
+<div class="section">
+  <div class="sec-hdr">Datos del crimen</div>
+  <div class="info-grid">
+    <div class="ic"><div class="ic-l">Víctima</div><div class="ic-v">${c.victima}<br><span style="color:#999;font-size:12px">${c.victima_perfil}</span></div></div>
+    <div class="ic"><div class="ic-l">Lugar del crimen</div><div class="ic-v">${c.lugar}</div></div>
+    <div class="ic"><div class="ic-l">Fecha / Hora</div><div class="ic-v">${c.fecha_crimen}</div></div>
+    <div class="ic"><div class="ic-l">Causa de muerte</div><div class="ic-v">${c.metodo}</div></div>
+  </div>
+  <div class="narr">${c.narrativa}</div>
+  <div class="diff-row" id="diff-export"></div>
+</div>
+
+<!-- SOSPECHOSOS -->
+<div class="section">
+  <div class="sec-hdr">Personas de interés</div>
+  ${suspects}
+</div>
+
+<!-- EVIDENCIAS -->
+<div class="section">
+  <div class="sec-hdr">Registro de evidencias</div>
+  <div class="ev-grid">${evidences}</div>
+  <div class="rbox"><div class="rlbl">Informe forense / Autopsia</div><div class="rtxt">${c.informe_forense||''}</div></div>
+</div>
+
+<!-- ENTREVISTAS -->
+<div class="section">
+  <div class="sec-hdr">Transcripciones de entrevistas</div>
+  ${interviews}
+</div>
+
+<!-- MULTIMEDIA -->
+<div class="section">
+  <div class="sec-hdr">Archivos de audio (transcripciones)</div>
+  ${audios}
+  <div class="sec-hdr" style="margin-top:20px">Fotografías del caso</div>
+  <div class="photo-grid">${photos}</div>
+  <div class="sec-hdr">Documentos</div>
+  ${docs}
+</div>
+
+<!-- CRONOLOGÍA -->
+<div class="section">
+  <div class="sec-hdr">Cronología de eventos</div>
+  ${tl}
+</div>
+
+<!-- PISTAS CLAVE -->
+<div class="section">
+  <div class="sec-hdr">Pistas para los jugadores</div>
+  ${(c.pistas_clave||[]).map((p,i)=>`<div class="tip-card"><div class="tip-lbl2">Pista ${i+1}</div><div class="tip-txt2">${p}</div></div>`).join('')}
+</div>
+
+<!-- SOLUCIÓN — SOLO PARA EL ORGANIZADOR -->
+<div class="section">
+  <div class="sec-hdr">⚠ Solución — Solo para el organizador</div>
+  <div class="sol-sect">
+    <div class="sol-hdr2"><span style="font-size:18px">🔒</span><span class="sol-lbl2">Solución del caso — No compartir con jugadores</span></div>
+    <div class="sol-bd">
+      <div class="cul-nm">Culpable: ${c.solucion.culpable}</div>
+      <div class="sol-exp">${c.solucion.explicacion}</div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="doc-footer">
+  <div>
+    <div class="footer-logo">CASE FILE PRO</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#bbb;letter-spacing:2px;margin-top:4px">Sistema de investigación criminal para juegos</div>
+  </div>
+  <div class="footer-info">
+    ${biz.name?`${biz.name}<br>`:''}
+    ${biz.email?`${biz.email}<br>`:''}
+    Expediente #${String(c._n).padStart(3,'0')} · ${c._ts}
+  </div>
+</div>
+
+</div><!-- /page -->
+<script>
+// Render difficulty bar
+const dMap={fácil:[5,0,0,'FÁCIL'],media:[3,2,0,'MEDIA'],difícil:[1,1,3,'DIFÍCIL']};
+const [e,m,h,lbl]=dMap['${c.dificultad}']||dMap['media'];
+const dr=document.getElementById('diff-export');
+let b='';
+for(let i=0;i<e;i++)b+='<div class="ds easy"></div>';
+for(let i=0;i<m;i++)b+='<div class="ds med"></div>';
+for(let i=0;i<h;i++)b+='<div class="ds hard"></div>';
+for(let i=0;i<5-e-m-h;i++)b+='<div class="ds"></div>';
+dr.innerHTML=b+'<span class="diff-lbl">'+lbl+'</span>';
+<\/script>
+</body>
+</html>`;
+}
+
+// ═══════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════
+function showLoading(msg) { document.getElementById('ld-msg').textContent=msg; document.getElementById('loading').classList.add('on'); }
+function setLoadMsg(msg) { document.getElementById('ld-msg').textContent=msg; }
+function hideLoading() { document.getElementById('loading').classList.remove('on'); }
+
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(()=>t.className='', 2800);
+}
+</script>
+</body>
+</html>
