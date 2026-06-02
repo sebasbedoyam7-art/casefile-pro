@@ -600,6 +600,17 @@ body { background:var(--bg); color:var(--t1); font-family:'Crimson Pro',serif; m
           </div>
         </div>
         <div class="gs-section">
+          <span class="gs-label">Dificultad</span>
+          <div class="gs-grid3">
+            <button class="gs-btn active" data-dif="cualquiera" onclick="setOpt(this,'dif')">Cualquiera</button>
+            <button class="gs-btn" data-dif="fácil" onclick="setOpt(this,'dif')">Fácil</button>
+            <button class="gs-btn" data-dif="media" onclick="setOpt(this,'dif')">Media</button>
+          </div>
+          <div class="gs-grid2" style="margin-top:5px">
+            <button class="gs-btn" data-dif="difícil" onclick="setOpt(this,'dif')">Difícil</button>
+          </div>
+        </div>
+        <div class="gs-section">
           <span class="gs-label">Ambientación</span>
           <div class="tags-wrap">
             <button class="tag-btn active" data-cat="cualquiera" onclick="setCat(this)">Cualquiera</button>
@@ -696,9 +707,19 @@ body { background:var(--bg); color:var(--t1); font-family:'Crimson Pro',serif; m
           </div>
         </div>
         <!-- EXPORT BAR -->
-        <div class="export-bar" id="export-bar">
-          <div class="export-info" id="export-info">Caso listo para exportar</div>
-          <button class="export-btn" onclick="exportCase()">⬇ Exportar para cliente</button>
+        <div class="export-bar" id="export-bar" style="flex-wrap:wrap;gap:10px">
+          <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:260px">
+            <div class="export-info" id="export-info">Caso listo — completá los datos del cliente antes de exportar</div>
+            <div style="display:flex;gap:8px">
+              <input id="client-name" type="text" placeholder="Nombre del cliente" style="flex:1;background:var(--s2);border:1px solid var(--b2);color:var(--t1);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:6px 10px;border-radius:var(--r)">
+              <input id="client-email" type="text" placeholder="Email del cliente" style="flex:1;background:var(--s2);border:1px solid var(--b2);color:var(--t1);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:6px 10px;border-radius:var(--r)">
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="export-btn" style="background:var(--blue)" onclick="exportExpediente()">📄 Expediente</button>
+            <button class="export-btn" style="background:var(--green)" onclick="exportEvidencias()">🔍 Evidencias</button>
+            <button class="export-btn" style="background:var(--red)" onclick="exportSolucion()">🔒 Solución</button>
+          </div>
         </div>
       </div>
     </div>
@@ -827,7 +848,7 @@ window.addEventListener('load', () => {
 // ═══════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════
-let opts = { type:'aleatorio', dur:'aleatorio', cat:'cualquiera' };
+let opts = { type:'aleatorio', dur:'aleatorio', dif:'cualquiera', cat:'cualquiera' };
 let caseHistory = [];
 let currentCase = null;
 let solOpen = false;
@@ -1025,7 +1046,7 @@ function buildPromptJSON() {
   const tMap = { aleatorio:'aleatorio', ficticio:'completamente ficticio', inspirado:'inspirado en casos reales con nombres cambiados' };
   const dMap = { aleatorio:'aleatoria', corto:'CORTA (2-3 sospechosos, 4 evidencias, 2 entrevistas, 2 audios, 3 fotos, 1 documento, 6 eventos cronología)', mediano:'MEDIANA (4-5 sospechosos, 8 evidencias, 4 entrevistas, 3 audios, 4 fotos, 2 documentos, 8 eventos)', largo:'LARGA (6 sospechosos, 10 evidencias, 5 entrevistas, 4 audios, 5 fotos, 3 documentos, 10 eventos)' };
   return `Genera un caso de asesinato para juego. Tipo: ${tMap[opts.type]}. Complejidad: ${dMap[opts.dur]}. Ambientación: ${opts.cat==='cualquiera'?'libre':opts.cat}.
-Reglas: caso resoluble, culpable con motivo/oportunidad/medios, entrevistas con contradicciones, mezcla pistas reales y falsas, nombres ficticios, tono profesional.
+Reglas: caso resoluble, culpable con motivo/oportunidad/medios, entrevistas con contradicciones, mezcla pistas reales y falsas, nombres ficticios, tono profesional. Dificultad requerida: ${opts.dif==='cualquiera'?'elige la más interesante':opts.dif}.
 Responde ÚNICAMENTE con este JSON válido y completo (sin markdown, sin texto extra):
 
 {
@@ -1274,340 +1295,430 @@ function deleteCase(n) {
 // ═══════════════════════════════════════
 //  EXPORT — HTML COMPLETO PARA CLIENTE
 // ═══════════════════════════════════════
-function exportCase() { if(currentCase) exportCaseData(currentCase); }
+function exportCase() { exportExpediente(); }
 
-function exportCaseData(c) {
-  showLoading('Generando archivo para cliente...');
-  setTimeout(()=>{
-    const html = buildExportHTML(c);
-    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url;
-    a.download = `CaseFile_${String(c._n).padStart(3,'0')}_${c.titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g,'').replace(/\s+/g,'_').substring(0,40)}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    hideLoading();
-    toast('Archivo exportado correctamente', 'success');
-  }, 600);
+async function generateImagesForCase(c, apiKey) {
+  // Generate AI illustrations via Anthropic API for key photos
+  const photos = (c.fotos || []).slice(0, 3);
+  const generated = [];
+  for(const foto of photos) {
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model:'claude-sonnet-4-5',
+          max_tokens:500,
+          messages:[{ role:'user', content:`Describe in 2 sentences a noir/detective illustration for: "${foto.titulo}". Context: ${foto.descripcion}. Style: dark, vintage, 1940s detective aesthetic. Return ONLY the description, no markdown.` }]
+        })
+      });
+      const d = await r.json();
+      generated.push({ id: foto.id, titulo: foto.titulo, desc: d.content[0].text, relevancia: foto.relevancia });
+    } catch(e) {
+      generated.push({ id: foto.id, titulo: foto.titulo, desc: foto.descripcion, relevancia: foto.relevancia });
+    }
+  }
+  return generated;
 }
 
-function buildExportHTML(c) {
-  const biz = bizCfg;
-  const note = c._note ? `<div class="client-note"><div class="cn-title">📋 Nota del organizador</div><div class="cn-body">${c._note}</div></div>` : '';
+function getClientInfo() {
+  return {
+    name: document.getElementById('client-name').value.trim() || 'Cliente',
+    email: document.getElementById('client-email').value.trim() || ''
+  };
+}
 
-  const suspects = (c.sospechosos||[]).map(s=>`
-    <div class="s-card">
-      <div class="s-ava">${s.nombre.charAt(0)}</div>
-      <div class="s-body">
-        <div class="s-nm">${s.nombre}</div>
-        <div class="s-rl">${s.rol}</div>
-        <p>${s.descripcion}</p>
-        <p><span class="lbl">Coartada: </span>${s.coartada}</p>
-        <div class="motive-pill">Motivo potencial: ${s.motive}</div>
-      </div>
-    </div>`).join('');
+function getSharedCSS() {
+  return `
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#f5f1eb;color:#1a1814;font-family:'Crimson Pro',serif;font-size:15px;line-height:1.7}
+    .page{max-width:860px;margin:0 auto;padding:48px 40px}
+    .doc-header{border-bottom:3px solid #1a1814;padding-bottom:24px;margin-bottom:32px;display:flex;justify-content:space-between;align-items:flex-end}
+    .doc-logo{font-family:'Playfair Display',serif;font-weight:900;font-size:26px;letter-spacing:4px;color:#1a1814}
+    .doc-biz{text-align:right;font-size:11px;color:#666;line-height:1.8;font-family:'IBM Plex Mono',monospace;letter-spacing:1px}
+    .stamp{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#b84040;border:2px solid #b84040;display:inline-block;padding:4px 12px;border-radius:2px;opacity:.6;margin-top:8px;transform:rotate(-2deg)}
+    .case-block{margin-bottom:36px;border-left:4px solid #b84040;padding-left:20px}
+    .case-n{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#999;margin-bottom:8px}
+    .case-tl{font-family:'Playfair Display',serif;font-size:38px;font-weight:900;line-height:1.05;color:#1a1814;margin-bottom:12px}
+    .badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .badge{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;padding:3px 10px;border-radius:2px;text-transform:uppercase;border:1px solid}
+    .badge.corto{background:#e8f4ec;color:#2d6b3d;border-color:#a8d4b4}
+    .badge.mediano{background:#fef6e4;color:#8b6914;border-color:#e8c97a}
+    .badge.largo{background:#fdeaea;color:#8b2020;border-color:#e8a0a0}
+    .badge.ficticio{background:#fdf8f0;color:#8b6020;border-color:#d4a860}
+    .badge.inspirado{background:#edf3fb;color:#204480;border-color:#90b4e0}
+    .case-lead{font-size:16px;color:#555;font-style:italic}
+    .section{margin-bottom:36px}
+    .sec-hdr{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#999;margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid #d0ccc8}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+    .ic{background:#fff;border:1px solid #ddd;border-radius:2px;padding:12px 14px}
+    .ic-l{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:4px}
+    .ic-v{font-size:14px;color:#1a1814}
+    .narr{background:#fff;border-left:3px solid #b84040;padding:16px 18px;font-size:15px;line-height:1.85;color:#444;border-radius:0 2px 2px 0;margin-bottom:16px}
+    .diff-row{display:flex;gap:5px;align-items:center;margin-bottom:4px}
+    .ds{width:20px;height:5px;border-radius:1px;background:#e0ddd8}
+    .ds.easy{background:#3d7a52}.ds.med{background:#a88830}.ds.hard{background:#b84040}
+    .diff-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#666;margin-left:6px}
+    .s-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:14px 16px;display:flex;gap:14px;margin-bottom:10px}
+    .s-ava{width:44px;height:44px;min-width:44px;background:#f5f1eb;border:1px solid #ddd;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:18px;color:#b84040}
+    .s-nm{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#1a1814;margin-bottom:2px}
+    .s-rl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:7px}
+    .s-body p{font-size:13px;color:#555;margin-bottom:5px}
+    .lbl{color:#999;font-size:12px}
+    .motive-pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;padding:3px 9px;background:#fdeaea;color:#8b2020;border:1px solid #e8a0a0;border-radius:2px;text-transform:uppercase;margin-top:4px}
+    .ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
+    .ev-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:11px;display:flex;gap:10px}
+    .ev-ico{font-size:20px;margin-top:1px}
+    .ev-nm{font-size:13px;font-weight:600;color:#1a1814;margin-bottom:3px}
+    .ev-ds{font-size:12px;color:#555;line-height:1.5}
+    .etag{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1px;padding:2px 6px;border-radius:2px;text-transform:uppercase;margin-top:5px;border:1px solid}
+    .etag-fisico{background:#e8f4ec;color:#2d6b3d;border-color:#a8d4b4}
+    .etag-digital{background:#edf3fb;color:#204480;border-color:#90b4e0}
+    .etag-testimonial{background:#fef6e4;color:#8b6914;border-color:#e8c97a}
+    .etag-forense{background:#fdeaea;color:#8b2020;border-color:#e8a0a0}
+    .rbox{background:#fff;border:1px solid #ddd;border-radius:2px;padding:14px 16px;margin-bottom:10px}
+    .rlbl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:7px}
+    .rtxt{font-size:13px;color:#555;line-height:1.75}
+    .intv{background:#fff;border:1px solid #ddd;border-radius:2px;overflow:hidden;margin-bottom:12px}
+    .intv-head{background:#f5f1eb;border-bottom:1px solid #ddd;padding:9px 14px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#8b6020;text-transform:uppercase;display:flex;justify-content:space-between}
+    .intv-dt{color:#999;font-weight:300}
+    .intv-body{padding:13px 15px}
+    .qa{margin-bottom:12px}
+    .q{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#999;margin-bottom:5px}
+    .q b{color:#b84040}
+    .a{font-size:13px;color:#555;line-height:1.7;padding-left:14px;border-left:2px solid #ddd}
+    .media-item{background:#fff;border:1px solid #ddd;border-radius:2px;padding:12px 14px;display:flex;gap:12px;margin-bottom:8px}
+    .media-ico{font-size:22px}
+    .media-title{font-size:13px;font-weight:600;color:#1a1814;margin-bottom:2px}
+    .media-meta{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#999;margin-bottom:4px}
+    .media-body{font-size:12px;color:#666}
+    .tl-row{display:flex;gap:12px;margin-bottom:10px}
+    .tl-time{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#b84040;min-width:55px;padding-top:2px}
+    .tl-mid{display:flex;flex-direction:column;align-items:center}
+    .tl-dot2{width:8px;height:8px;border-radius:50%;background:#fff;border:2px solid #b84040;flex-shrink:0;margin-top:3px}
+    .tl-line2{width:1px;flex:1;background:#ddd;min-height:20px}
+    .tl-ev{font-size:13px;color:#555;line-height:1.65;flex:1}
+    .doc-footer{margin-top:48px;padding-top:20px;border-top:1px solid #d0ccc8;display:flex;justify-content:space-between;align-items:center}
+    .footer-logo{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;letter-spacing:2px;color:#999}
+    .footer-info{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#bbb;letter-spacing:1px;text-align:right;line-height:1.8}
+    .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+    .photo-card{background:#fff;border:1px solid #ddd;border-radius:2px;overflow:hidden}
+    .photo-scene{height:160px;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+    .photo-scene-inner{text-align:center;padding:12px}
+    .photo-scene-icon{font-size:36px;opacity:.6;display:block;margin-bottom:8px}
+    .photo-scene-txt{font-family:'Crimson Pro',serif;font-size:11px;color:rgba(255,255,255,.7);font-style:italic;line-height:1.4}
+    .photo-id{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;background:#1a1814;color:#f5f1eb;padding:4px 8px;text-transform:uppercase}
+    .photo-tl{padding:6px 8px 2px;font-size:12px;font-weight:600;color:#1a1814}
+    .photo-ds{padding:0 8px 4px;font-size:11px;color:#666}
+    .photo-rv{padding:5px 8px 8px;font-size:11px;color:#888;border-top:1px solid #eee}
+    .doc-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:13px 15px;margin-bottom:8px}
+    .doc-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;color:#555;margin-bottom:7px;text-transform:uppercase}
+    .doc-type{color:#999}
+    .doc-body{font-size:13px;color:#555;line-height:1.7}
+    .client-note{background:#fffef0;border:1px solid #e0d080;border-radius:3px;padding:14px 18px;margin-bottom:28px}
+    .cn-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#998840;margin-bottom:6px}
+    .cn-body{font-size:14px;color:#555;line-height:1.7}
+    .tip-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:11px 14px;margin-bottom:8px}
+    .tip-lbl2{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:5px}
+    .tip-txt2{font-size:13px;color:#555;line-height:1.6}
+    @media print{
+  body{background:#fff!important}
+  .page{padding:20px!important}
+  .print-bar{display:none!important}
+  .s-card,.ev-card,.intv,.rbox,.tip-card,.doc-card,.media-item{break-inside:avoid}
+  .section{break-inside:avoid}
+  .photo-scene{background:#2a2a3e!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .photo-scene-txt{color:rgba(255,255,255,.8)!important}
+}
+@page{margin:15mm;size:A4}
+.watermark{position:fixed;bottom:18mm;right:15mm;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:rgba(184,64,64,.25);text-align:right;line-height:1.6;pointer-events:none;z-index:9999}
+.watermark-diag{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-family:'IBM Plex Mono',monospace;font-size:48px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:rgba(184,64,64,.04);pointer-events:none;z-index:0;white-space:nowrap}
+.terms-page{page-break-before:always;padding:40px 0;border-top:2px solid #b84040;margin-top:48px}
+.terms-title{font-family:'Playfair Display',serif;font-size:18px;color:#1a1814;margin-bottom:16px}
+.terms-txt{font-size:11px;color:#666;line-height:1.8}
+.terms-txt p{margin-bottom:8px}
+.licensed-to{background:#fdeaea;border:1px solid #e8a0a0;border-radius:2px;padding:12px 16px;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8b2020;line-height:1.8}
+@media print{.watermark{display:block!important}.watermark-diag{display:block!important}}
+  `;
+}
 
-  const evidences = (c.evidencias||[]).map(e=>`
-    <div class="ev-card">
-      <span class="ev-ico">${e.icono||'🔍'}</span>
-      <div>
-        <div class="ev-nm">${e.nombre}</div>
-        <div class="ev-ds">${e.descripcion}</div>
-        <div class="etag etag-${e.tipo}">${e.tipo}</div>
-      </div>
-    </div>`).join('');
+function getSharedHeader(c, biz, stampText) {
+  return `
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <div class="doc-header">
+    <div>
+      <div class="doc-logo">CASE FILE</div>
+      <div class="stamp">${stampText}</div>
+    </div>
+    ${biz.name||biz.email?`<div class="doc-biz">${biz.name?`<div><b>${biz.name}</b></div>`:''}${biz.email?`<div>${biz.email}</div>`:''}${biz.web?`<div>${biz.web}</div>`:''}</div>`:''}
+  </div>
+  <div class="case-block">
+    <div class="case-n">Expediente #${String(c._n).padStart(3,'0')} · ${c._ts}</div>
+    <div class="case-tl">${c.titulo}</div>
+    <div class="badge-row">
+      <span class="badge ${c.duracion}">${c.duracion.toUpperCase()}</span>
+      <span class="badge ${c.tipo}">${c.tipo.toUpperCase()}</span>
+      <span class="badge" style="background:#edf3fb;color:#204480;border-color:#90b4e0">${c.ambientacion}</span>
+    </div>
+    <div class="case-lead">${c.subtitulo}</div>
+  </div>`;
+}
 
-  const interviews = (c.entrevistas||[]).map(en=>`
-    <div class="intv">
-      <div class="intv-head">${en.entrevistado} <span class="intv-dt">${en.fecha}</span></div>
-      <div class="intv-body">
-        ${(en.qa||[]).map(q=>`
-          <div class="qa"><div class="q"><b>Detective:</b> ${q.pregunta}</div>
-          <div class="a">${q.respuesta}</div></div>`).join('')}
-      </div>
-    </div>`).join('');
+function getWatermark(client, biz) {
+  const fecha = new Date().toLocaleDateString('es',{day:'2-digit',month:'2-digit',year:'numeric'});
+  return `
+  <div class="watermark-diag">CASE FILE</div>
+  <div class="watermark">
+    Licenciado a: ${client.name}${client.email?' · '+client.email:''}<br>
+    ${biz.name||'Case File Pro'} · ${fecha}<br>
+    Uso personal — prohibida su redistribución
+  </div>`;
+}
 
-  const audios = (c.audios||[]).map(a=>`
-    <div class="media-item">
-      <div class="media-ico">🎙</div>
-      <div>
-        <div class="media-title">${a.titulo}</div>
-        <div class="media-meta">${a.tipo.toUpperCase()} · ${a.duracion}</div>
-        <div class="media-body"><em>"${a.transcripcion}"</em></div>
-      </div>
-    </div>`).join('');
+function getTermsPage(client, biz) {
+  const fecha = new Date().toLocaleDateString('es',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const year = new Date().getFullYear();
+  return `
+  <div class="terms-page">
+    <div class="terms-title">Términos de licencia y uso</div>
+    <div class="licensed-to">
+      📋 LICENCIA OTORGADA A<br>
+      <b>${client.name}</b>${client.email?' — '+client.email:''}<br>
+      Fecha de emisión: ${fecha} · Expediente: ${biz.name||'Case File Pro'}
+    </div>
+    <div class="terms-txt">
+      <p><b>1. USO PERSONAL.</b> Este material ha sido adquirido bajo licencia personal e intransferible. Su uso está autorizado exclusivamente para el grupo o evento indicado en el momento de la compra.</p>
+      <p><b>2. PROHIBICIÓN DE REDISTRIBUCIÓN.</b> Queda expresamente prohibido compartir, reenviar, vender, publicar o distribuir este material en cualquier formato, ya sea digital o impreso, a terceras personas o grupos no autorizados.</p>
+      <p><b>3. PROHIBICIÓN DE REPRODUCCIÓN COMERCIAL.</b> Este contenido no puede ser utilizado con fines comerciales por parte del licenciatario. La reventa o distribución con o sin cargo está estrictamente prohibida.</p>
+      <p><b>4. PROPIEDAD INTELECTUAL.</b> Todos los personajes, tramas, evidencias y materiales contenidos en este expediente son propiedad de ${biz.name||'Case File Pro'} y están protegidos por derechos de autor.</p>
+      <p><b>5. RESPONSABILIDAD.</b> El incumplimiento de estos términos puede resultar en acciones legales. El material lleva identificación única del licenciatario.</p>
+      <p style="margin-top:16px;color:#999">© ${year} ${biz.name||'Case File Pro'}${biz.email?' · '+biz.email:''} — Todos los derechos reservados.</p>
+    </div>
+  </div>`;
+}
 
-  const photos = (c.fotos||[]).map(f=>`
+function getSharedFooter(c, biz) {
+  return `
+  <div class="doc-footer">
+    <div>
+      <div class="footer-logo">CASE FILE PRO</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#bbb;letter-spacing:2px;margin-top:4px">Sistema de investigación criminal para juegos</div>
+    </div>
+    <div class="footer-info">
+      ${biz.name?biz.name+'<br>':''}${biz.email?biz.email+'<br>':''}
+      Expediente #${String(c._n).padStart(3,'0')} · ${c._ts}
+    </div>
+  </div>`;
+}
+
+function buildPhotoScene(foto, idx) {
+  const icons = ['🔦','🗝️','🩸','📜','🔪','💀','🕵️','🧪','🚬','⌚'];
+  const icon = icons[idx % icons.length];
+  // Dark atmospheric illustration card
+  return `
     <div class="photo-card">
-      <div class="photo-ph">📷</div>
-      <div class="photo-id">${f.id}</div>
-      <div class="photo-tl">${f.titulo}</div>
-      <div class="photo-ds">${f.descripcion}</div>
-      <div class="photo-rv"><b>Relevancia:</b> ${f.relevancia}</div>
-    </div>`).join('');
+      <div class="photo-scene">
+        <div class="photo-scene-inner">
+          <span class="photo-scene-icon">${icon}</span>
+          <div class="photo-scene-txt">${foto.titulo}</div>
+        </div>
+      </div>
+      <div class="photo-id">${foto.id || 'FOTO-0'+(idx+1)}</div>
+      <div class="photo-tl">${foto.titulo}</div>
+      <div class="photo-ds">${foto.descripcion||foto.desc||''}</div>
+      <div class="photo-rv"><b>Relevancia:</b> ${foto.relevancia}</div>
+    </div>`;
+}
 
-  const docs = (c.documentos||[]).map(d=>`
-    <div class="doc-card">
-      <div class="doc-title">📄 ${d.titulo} <span class="doc-type">[${d.tipo}]</span></div>
-      <div class="doc-body">${d.contenido}</div>
-    </div>`).join('');
+function downloadHTML(html, filename) {
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
-  const tl = (c.cronologia||[]).map((ev,i,arr)=>`
-    <div class="tl-row">
-      <div class="tl-time">${ev.hora}</div>
+function baseName(c) {
+  return `CaseFile_${String(c._n).padStart(3,'0')}_${c.titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g,'_').substring(0,30)}`;
+}
+
+// ── ARCHIVO 1: EXPEDIENTE (sin solución) ──
+function exportExpediente() {
+  if(!currentCase) return;
+  const c = currentCase; const biz = bizCfg; const client = getClientInfo();
+  if(!client.name || client.name==='Cliente'){if(!confirm('No ingresaste el nombre del cliente. ¿Exportar igual?'))return;}
+  showLoading('Generando expediente...');
+  setTimeout(()=>{
+    const note = c._note ? `<div class="client-note"><div class="cn-title">📋 Nota del organizador</div><div class="cn-body">${c._note}</div></div>` : '';
+    const suspects = (c.sospechosos||[]).map(s=>`
+      <div class="s-card"><div class="s-ava">${s.nombre.charAt(0)}</div>
+      <div class="s-body"><div class="s-nm">${s.nombre}</div><div class="s-rl">${s.rol}</div>
+      <p>${s.descripcion}</p><p><span class="lbl">Coartada: </span>${s.coartada}</p>
+      <div class="motive-pill">Motivo potencial: ${s.motive}</div></div></div>`).join('');
+    const interviews = (c.entrevistas||[]).map(en=>`
+      <div class="intv"><div class="intv-head">${en.entrevistado}<span class="intv-dt">${en.fecha}</span></div>
+      <div class="intv-body">${(en.qa||[]).map(q=>`<div class="qa"><div class="q"><b>Detective:</b> ${q.pregunta}</div><div class="a">${q.respuesta}</div></div>`).join('')}</div></div>`).join('');
+    const tl = (c.cronologia||[]).map((ev,i,arr)=>`
+      <div class="tl-row"><div class="tl-time">${ev.hora}</div>
       <div class="tl-mid"><div class="tl-dot2"></div>${i<arr.length-1?'<div class="tl-line2"></div>':''}</div>
-      <div class="tl-ev">${ev.evento}</div>
-    </div>`).join('');
+      <div class="tl-ev">${ev.evento}</div></div>`).join('');
+    const dMap={fácil:[5,0,0,'FÁCIL'],media:[3,2,0,'MEDIA'],difícil:[1,1,3,'DIFÍCIL']};
+    const [e,m,h,lbl]=dMap[c.dificultad]||dMap['media'];
+    let diffBars='';
+    for(let i=0;i<e;i++) diffBars+='<div class="ds easy"></div>';
+    for(let i=0;i<m;i++) diffBars+='<div class="ds med"></div>';
+    for(let i=0;i<h;i++) diffBars+='<div class="ds hard"></div>';
+    for(let i=0;i<5-e-m-h;i++) diffBars+='<div class="ds"></div>';
 
-  const durCl = {corto:'corto',mediano:'mediano',largo:'largo'};
-  const tipoCl = {ficticio:'ficticio',inspirado:'inspirado'};
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EXPEDIENTE — ${c.titulo}</title><style>${getSharedCSS()}@media screen{.print-bar{display:flex!important}}</style>
+<script>window.onload=function(){setTimeout(function(){window.print()},800)}<\/script></head><body>
+<div class="print-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:#1a1814;color:#c9a96e;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;padding:10px 20px;align-items:center;justify-content:space-between"><span>📄 EXPEDIENTE · ${c.titulo}</span><span style="font-size:10px;opacity:.6">Seleccioná «Guardar como PDF» en el diálogo de impresión</span></div>
+<div class="page" style="margin-top:0">
+${getSharedHeader(c,biz,'Expediente Confidencial')}
+${note}
+<div class="section"><div class="sec-hdr">Datos del crimen</div>
+<div class="info-grid">
+  <div class="ic"><div class="ic-l">Víctima</div><div class="ic-v">${c.victima}<br><span style="color:#999;font-size:12px">${c.victima_perfil}</span></div></div>
+  <div class="ic"><div class="ic-l">Lugar</div><div class="ic-v">${c.lugar}</div></div>
+  <div class="ic"><div class="ic-l">Fecha / Hora</div><div class="ic-v">${c.fecha_crimen}</div></div>
+  <div class="ic"><div class="ic-l">Método</div><div class="ic-v">${c.metodo}</div></div>
+</div>
+<div class="narr">${c.narrativa}</div>
+<div class="diff-row">${diffBars}<span class="diff-lbl">${lbl}</span></div>
+</div>
+<div class="section"><div class="sec-hdr">Personas de interés</div>${suspects}</div>
+<div class="section"><div class="sec-hdr">Entrevistas</div>${interviews}</div>
+<div class="section"><div class="sec-hdr">Cronología</div>${tl}</div>
+<div class="section"><div class="sec-hdr">Pistas para los jugadores</div>
+${(c.pistas_clave||[]).map((p,i)=>`<div class="tip-card"><div class="tip-lbl2">Pista ${i+1}</div><div class="tip-txt2">${p}</div></div>`).join('')}
+</div>
+${getSharedFooter(c,biz)}
+${getTermsPage(client,biz)}
+${getWatermark(client,biz)}
+</div></body></html>`;
+    downloadHTML(html, baseName(c)+'_EXPEDIENTE.html');
+    hideLoading(); toast('Expediente exportado — licenciado a '+client.name,'success');
+  }, 400);
+}
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CASE FILE — ${c.titulo}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+// ── ARCHIVO 2: KIT DE EVIDENCIAS ──
+function exportEvidencias() {
+  if(!currentCase) return;
+  const c = currentCase; const biz = bizCfg; const client = getClientInfo();
+  showLoading('Generando kit de evidencias...');
+  setTimeout(()=>{
+    const evidences = (c.evidencias||[]).map(e=>`
+      <div class="ev-card"><div class="ev-ico">${e.icono||'🔍'}</div>
+      <div><div class="ev-nm">${e.nombre}</div><div class="ev-ds">${e.descripcion}</div>
+      <div class="etag etag-${e.tipo}">${e.tipo}</div></div></div>`).join('');
+    const audios = (c.audios||[]).map(a=>`
+      <div class="media-item"><div class="media-ico">🎙</div>
+      <div><div class="media-title">${a.titulo}</div>
+      <div class="media-meta">${a.tipo.toUpperCase()} · ${a.duracion}</div>
+      <div class="media-body"><em>"${a.transcripcion}"</em></div></div></div>`).join('');
+    const photos = (c.fotos||[]).map((f,i)=>buildPhotoScene(f,i)).join('');
+    const docs = (c.documentos||[]).map(d=>`
+      <div class="doc-card"><div class="doc-title">📄 ${d.titulo} <span class="doc-type">[${d.tipo}]</span></div>
+      <div class="doc-body">${d.contenido}</div></div>`).join('');
+
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVIDENCIAS — ${c.titulo}</title><style>${getSharedCSS()}@media screen{.print-bar{display:flex!important}}</style>
+<script>window.onload=function(){setTimeout(function(){window.print()},800)}<\/script></head><body>
+<div class="print-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:#1a1814;color:#c9a96e;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;padding:10px 20px;align-items:center;justify-content:space-between"><span>🔍 EVIDENCIAS · ${c.titulo}</span><span style="font-size:10px;opacity:.6">Seleccioná «Guardar como PDF» en el diálogo de impresión</span></div>
+<div class="page" style="margin-top:0">
+${getSharedHeader(c,biz,'Kit de Evidencias')}
+<div class="section"><div class="sec-hdr">Registro de evidencias</div>
+<div class="ev-grid">${evidences}</div>
+<div class="rbox"><div class="rlbl">Informe forense / Autopsia</div><div class="rtxt">${c.informe_forense||''}</div></div>
+</div>
+<div class="section"><div class="sec-hdr">Archivos de audio</div>${audios}</div>
+<div class="section"><div class="sec-hdr">Fotografías del caso</div>
+<div class="photo-grid">${photos}</div></div>
+<div class="section"><div class="sec-hdr">Documentos</div>${docs}</div>
+${getSharedFooter(c,biz)}
+${getTermsPage(client,biz)}
+${getWatermark(client,biz)}
+</div></body></html>`;
+    downloadHTML(html, baseName(c)+'_EVIDENCIAS.html');
+    hideLoading(); toast('Evidencias exportadas — licenciado a '+client.name,'success');
+  }, 400);
+}
+
+// ── ARCHIVO 3: SOBRE SELLADO — SOLO SOLUCIÓN ──
+function exportSolucion() {
+  if(!currentCase) return;
+  const c = currentCase; const biz = bizCfg; const client = getClientInfo();
+  showLoading('Sellando el sobre...');
+  setTimeout(()=>{
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOLUCIÓN CONFIDENCIAL — ${c.titulo}</title>
+<script>window.onload=function(){setTimeout(function(){window.print()},800)}<\/script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#f5f1eb;color:#1a1814;font-family:'Crimson Pro',serif;font-size:15px;line-height:1.7}
-.page{max-width:860px;margin:0 auto;padding:48px 40px}
-/* HEADER */
-.doc-header{border-bottom:3px solid #1a1814;padding-bottom:24px;margin-bottom:32px;display:flex;justify-content:space-between;align-items:flex-end}
-.doc-logo{font-family:'Playfair Display',serif;font-weight:900;font-size:26px;letter-spacing:4px;color:#1a1814}
-.doc-biz{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#666;letter-spacing:1px;line-height:1.8}
-/* CASE TITLE */
-.case-block{margin-bottom:36px;border-left:4px solid #b84040;padding-left:20px}
-.case-n{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#999;margin-bottom:8px}
-.case-tl{font-family:'Playfair Display',serif;font-size:38px;font-weight:900;line-height:1.05;color:#1a1814;margin-bottom:12px}
-.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.badge{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;padding:3px 10px;border-radius:2px;text-transform:uppercase;border:1px solid}
-.badge.corto{background:#e8f4ec;color:#2d6b3d;border-color:#a8d4b4}
-.badge.mediano{background:#fef6e4;color:#8b6914;border-color:#e8c97a}
-.badge.largo{background:#fdeaea;color:#8b2020;border-color:#e8a0a0}
-.badge.ficticio{background:#fdf8f0;color:#8b6020;border-color:#d4a860}
-.badge.inspirado{background:#edf3fb;color:#204480;border-color:#90b4e0}
-.case-lead{font-size:16px;color:#555;font-style:italic}
-/* CLIENT NOTE */
-.client-note{background:#fffef0;border:1px solid #e0d080;border-radius:3px;padding:14px 18px;margin-bottom:28px}
-.cn-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#998840;margin-bottom:6px}
-.cn-body{font-size:14px;color:#555;line-height:1.7}
-/* SECTIONS */
-.section{margin-bottom:36px}
-.sec-hdr{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#999;margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid #d0ccc8}
-/* INFO GRID */
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
-.ic{background:#fff;border:1px solid #ddd;border-radius:2px;padding:12px 14px}
-.ic-l{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:4px}
-.ic-v{font-size:14px;color:#1a1814}
-/* NARRATIVE */
-.narr{background:#fff;border-left:3px solid #b84040;padding:16px 18px;font-size:15px;line-height:1.85;color:#444;border-radius:0 2px 2px 0;margin-bottom:16px}
-/* DIFFICULTY */
-.diff-row{display:flex;gap:5px;align-items:center;margin-bottom:4px}
-.ds{width:20px;height:5px;border-radius:1px;background:#e0ddd8}
-.ds.easy{background:#3d7a52}.ds.med{background:#a88830}.ds.hard{background:#b84040}
-.diff-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#666;margin-left:6px}
-/* SUSPECTS */
-.s-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:14px 16px;display:flex;gap:14px;margin-bottom:10px}
-.s-ava{width:44px;height:44px;min-width:44px;background:#f5f1eb;border:1px solid #ddd;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:18px;color:#b84040}
-.s-nm{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#1a1814;margin-bottom:2px}
-.s-rl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:7px}
-.s-body p{font-size:13px;color:#555;margin-bottom:5px}
-.lbl{color:#999;font-size:12px}
-.motive-pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;padding:3px 9px;background:#fdeaea;color:#8b2020;border:1px solid #e8a0a0;border-radius:2px;text-transform:uppercase;margin-top:4px}
-/* EVIDENCE */
-.ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
-.ev-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:11px;display:flex;gap:10px}
-.ev-ico{font-size:20px;margin-top:1px}
-.ev-nm{font-size:13px;font-weight:600;color:#1a1814;margin-bottom:3px}
-.ev-ds{font-size:12px;color:#555;line-height:1.5}
-.etag{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1px;padding:2px 6px;border-radius:2px;text-transform:uppercase;margin-top:5px;border:1px solid}
-.etag-fisico{background:#e8f4ec;color:#2d6b3d;border-color:#a8d4b4}
-.etag-digital{background:#edf3fb;color:#204480;border-color:#90b4e0}
-.etag-testimonial{background:#fef6e4;color:#8b6914;border-color:#e8c97a}
-.etag-forense{background:#fdeaea;color:#8b2020;border-color:#e8a0a0}
-/* REPORT */
-.rbox{background:#fff;border:1px solid #ddd;border-radius:2px;padding:14px 16px;margin-bottom:10px}
-.rlbl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:7px}
-.rtxt{font-size:13px;color:#555;line-height:1.75}
-/* INTERVIEWS */
-.intv{background:#fff;border:1px solid #ddd;border-radius:2px;overflow:hidden;margin-bottom:12px}
-.intv-head{background:#f5f1eb;border-bottom:1px solid #ddd;padding:9px 14px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#8b6020;text-transform:uppercase;display:flex;justify-content:space-between}
-.intv-dt{color:#999;font-weight:300}
-.intv-body{padding:13px 15px}
-.qa{margin-bottom:12px}
-.q{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#999;margin-bottom:5px}
-.q b{color:#b84040}
-.a{font-size:13px;color:#555;line-height:1.7;padding-left:14px;border-left:2px solid #ddd}
-/* MEDIA */
-.media-item{background:#fff;border:1px solid #ddd;border-radius:2px;padding:12px 14px;display:flex;gap:12px;margin-bottom:8px}
-.media-ico{font-size:22px}
-.media-title{font-size:13px;font-weight:600;color:#1a1814;margin-bottom:2px}
-.media-meta{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#999;margin-bottom:4px}
-.media-body{font-size:12px;color:#666}
-/* PHOTOS */
-.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.photo-card{background:#fff;border:1px solid #ddd;border-radius:2px;overflow:hidden}
-.photo-ph{height:90px;background:#f0ece4;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.4}
-.photo-id{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;background:#1a1814;color:#f5f1eb;padding:4px 8px;text-transform:uppercase}
-.photo-tl{padding:6px 8px 2px;font-size:12px;font-weight:600;color:#1a1814}
-.photo-ds{padding:0 8px 4px;font-size:11px;color:#666}
-.photo-rv{padding:0 8px 8px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:5px;margin-top:3px}
-/* DOCS */
-.doc-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:13px 15px;margin-bottom:8px}
-.doc-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;color:#555;margin-bottom:7px;text-transform:uppercase}
-.doc-type{color:#999}
-.doc-body{font-size:13px;color:#555;line-height:1.7}
-/* TIMELINE */
-.tl-row{display:flex;gap:12px;margin-bottom:10px}
-.tl-time{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#b84040;min-width:55px;padding-top:2px}
-.tl-mid{display:flex;flex-direction:column;align-items:center}
-.tl-dot2{width:8px;height:8px;border-radius:50%;background:#fff;border:2px solid #b84040;flex-shrink:0;margin-top:3px}
-.tl-line2{width:1px;flex:1;background:#ddd;min-height:20px}
-.tl-ev{font-size:13px;color:#555;line-height:1.65;flex:1}
-/* SOLUTION BOX */
-.sol-sect{background:#fff;border:2px solid #b84040;border-radius:3px;overflow:hidden;page-break-inside:avoid}
-.sol-hdr2{background:#fdeaea;padding:12px 16px;display:flex;align-items:center;gap:10px}
-.sol-lbl2{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#8b2020}
-.sol-bd{padding:18px}
-.cul-nm{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:#b84040;margin-bottom:10px}
-.sol-exp{font-size:14px;color:#444;line-height:1.8}
-/* TIPS */
-.tip-card{background:#fff;border:1px solid #ddd;border-radius:2px;padding:11px 14px;margin-bottom:8px}
-.tip-lbl2{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:5px}
-.tip-txt2{font-size:13px;color:#555;line-height:1.6}
-/* FOOTER */
-.doc-footer{margin-top:48px;padding-top:20px;border-top:1px solid #d0ccc8;display:flex;justify-content:space-between;align-items:center}
-.footer-logo{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;letter-spacing:2px;color:#999}
-.footer-info{font-family:'IBM Plex Mono',monospace;font-size:8px;color:#bbb;letter-spacing:1px;text-align:right;line-height:1.8}
-/* CONFIDENTIAL STAMP */
-.stamp{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#b84040;border:2px solid #b84040;display:inline-block;padding:4px 12px;border-radius:2px;opacity:.6;margin-top:8px;transform:rotate(-2deg)}
-@media print{body{background:#fff}.page{padding:24px 20px}}
-</style>
-</head>
-<body>
-<div class="page">
-
-<!-- HEADER -->
-<div class="doc-header">
-  <div>
-    <div class="doc-logo">CASE FILE</div>
-    <div class="stamp">Expediente Confidencial</div>
+body{background:#1a0808;color:#f0ede8;font-family:'Crimson Pro',serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.sol-wrap{max-width:680px;width:100%;padding:48px 40px}
+.sol-top{text-align:center;margin-bottom:40px;padding-bottom:28px;border-bottom:1px solid rgba(184,64,64,.4)}
+.sol-logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;letter-spacing:4px;color:rgba(201,169,110,.6);margin-bottom:16px}
+.sol-seal{width:80px;height:80px;border-radius:50%;border:3px solid #b84040;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px;background:rgba(184,64,64,.1)}
+.sol-warning{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(184,64,64,.8)}
+.sol-card{background:rgba(255,255,255,.05);border:1px solid rgba(184,64,64,.3);border-radius:3px;padding:32px;margin-bottom:20px}
+.sol-caso{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(201,169,110,.7);margin-bottom:12px}
+.sol-titulo{font-family:'Playfair Display',serif;font-size:26px;color:#f0ede8;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(184,64,64,.3)}
+.sol-label{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:3px;text-transform:uppercase;color:rgba(184,64,64,.8);margin-bottom:8px}
+.sol-culpable{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:#e86060;margin-bottom:24px}
+.sol-sep{height:1px;background:rgba(184,64,64,.25);margin:20px 0}
+.sol-exp{font-size:15px;color:rgba(240,237,232,.8);line-height:1.85}
+.sol-footer{text-align:center;margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.2)}
+@media print{
+  body{background:#fff!important;color:#1a1814!important}
+  .sol-card{background:#fff!important;border-color:#ddd!important;border:2px solid #b84040!important}
+  .sol-culpable{color:#b84040!important}
+  .sol-exp{color:#444!important}
+  .sol-logo,.sol-warning{color:#999!important}
+  .sol-seal{border-color:#b84040!important;background:#fff!important}
+  .sol-label{color:#b84040!important}
+  .sol-caso,.sol-footer{color:#999!important}
+  .sol-titulo{color:#1a1814!important}
+  .sol-top{border-bottom-color:#ddd!important}
+}
+@page{margin:20mm;size:A4}
+</style></head><body>
+<div class="sol-wrap">
+  <div class="sol-top">
+    <div class="sol-logo">CASE FILE PRO</div>
+    <div class="sol-seal">🔓</div>
+    <div class="sol-warning">⚠ Documento confidencial · Solo para el organizador</div>
   </div>
-  ${biz.name||biz.email||biz.web?`<div class="doc-biz">${biz.name?`<div><b>${biz.name}</b></div>`:''}${biz.email?`<div>${biz.email}</div>`:''}${biz.web?`<div>${biz.web}</div>`:''}</div>`:''}
-</div>
-
-<!-- CASE TITLE -->
-<div class="case-block">
-  <div class="case-n">Expediente #${String(c._n).padStart(3,'0')} · Generado: ${c._ts}</div>
-  <div class="case-tl">${c.titulo}</div>
-  <div class="badge-row">
-    <span class="badge ${c.duracion}">${c.duracion.toUpperCase()}</span>
-    <span class="badge ${c.tipo}">${c.tipo.toUpperCase()}</span>
-    <span class="badge" style="background:#edf3fb;color:#204480;border-color:#90b4e0">${c.ambientacion}</span>
-  </div>
-  <div class="case-lead">${c.subtitulo}</div>
-</div>
-
-${note}
-
-<!-- RESUMEN -->
-<div class="section">
-  <div class="sec-hdr">Datos del crimen</div>
-  <div class="info-grid">
-    <div class="ic"><div class="ic-l">Víctima</div><div class="ic-v">${c.victima}<br><span style="color:#999;font-size:12px">${c.victima_perfil}</span></div></div>
-    <div class="ic"><div class="ic-l">Lugar del crimen</div><div class="ic-v">${c.lugar}</div></div>
-    <div class="ic"><div class="ic-l">Fecha / Hora</div><div class="ic-v">${c.fecha_crimen}</div></div>
-    <div class="ic"><div class="ic-l">Causa de muerte</div><div class="ic-v">${c.metodo}</div></div>
-  </div>
-  <div class="narr">${c.narrativa}</div>
-  <div class="diff-row" id="diff-export"></div>
-</div>
-
-<!-- SOSPECHOSOS -->
-<div class="section">
-  <div class="sec-hdr">Personas de interés</div>
-  ${suspects}
-</div>
-
-<!-- EVIDENCIAS -->
-<div class="section">
-  <div class="sec-hdr">Registro de evidencias</div>
-  <div class="ev-grid">${evidences}</div>
-  <div class="rbox"><div class="rlbl">Informe forense / Autopsia</div><div class="rtxt">${c.informe_forense||''}</div></div>
-</div>
-
-<!-- ENTREVISTAS -->
-<div class="section">
-  <div class="sec-hdr">Transcripciones de entrevistas</div>
-  ${interviews}
-</div>
-
-<!-- MULTIMEDIA -->
-<div class="section">
-  <div class="sec-hdr">Archivos de audio (transcripciones)</div>
-  ${audios}
-  <div class="sec-hdr" style="margin-top:20px">Fotografías del caso</div>
-  <div class="photo-grid">${photos}</div>
-  <div class="sec-hdr">Documentos</div>
-  ${docs}
-</div>
-
-<!-- CRONOLOGÍA -->
-<div class="section">
-  <div class="sec-hdr">Cronología de eventos</div>
-  ${tl}
-</div>
-
-<!-- PISTAS CLAVE -->
-<div class="section">
-  <div class="sec-hdr">Pistas para los jugadores</div>
-  ${(c.pistas_clave||[]).map((p,i)=>`<div class="tip-card"><div class="tip-lbl2">Pista ${i+1}</div><div class="tip-txt2">${p}</div></div>`).join('')}
-</div>
-
-<!-- SOLUCIÓN — SOLO PARA EL ORGANIZADOR -->
-<div class="section">
-  <div class="sec-hdr">⚠ Solución — Solo para el organizador</div>
-  <div class="sol-sect">
-    <div class="sol-hdr2"><span style="font-size:18px">🔒</span><span class="sol-lbl2">Solución del caso — No compartir con jugadores</span></div>
-    <div class="sol-bd">
-      <div class="cul-nm">Culpable: ${c.solucion.culpable}</div>
-      <div class="sol-exp">${c.solucion.explicacion}</div>
+  <div class="sol-card">
+    <div class="sol-caso">Expediente #${String(c._n).padStart(3,'0')}</div>
+    <div class="sol-titulo">${c.titulo}</div>
+    <div class="licensed-to" style="background:rgba(184,64,64,.1);border:1px solid rgba(184,64,64,.3);border-radius:2px;padding:10px 14px;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(184,64,64,.8);letter-spacing:1px;line-height:1.8">
+      📋 LICENCIADO A: ${client.name}${client.email?' · '+client.email:''}<br>
+      ${biz.name||'Case File Pro'} · ${new Date().toLocaleDateString('es')}
     </div>
+    <div class="sol-label">El culpable es</div>
+    <div class="sol-culpable">${c.solucion.culpable}</div>
+    <div class="sol-sep"></div>
+    <div class="sol-label">Explicación completa</div>
+    <div class="sol-exp">${c.solucion.explicacion}</div>
   </div>
+  <div class="sol-footer">
+    ${biz.name||'Case File Pro'} · ${c._ts} · No compartir con los jugadores
+  </div>
+  <div style="position:fixed;bottom:12mm;right:15mm;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:rgba(184,64,64,.3);text-align:right">LICENCIADO A: ${client.name} · ${biz.name||'Case File Pro'}<br>DOCUMENTO CONFIDENCIAL — NO REDISTRIBUIR</div>
 </div>
-
-<!-- FOOTER -->
-<div class="doc-footer">
-  <div>
-    <div class="footer-logo">CASE FILE PRO</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:#bbb;letter-spacing:2px;margin-top:4px">Sistema de investigación criminal para juegos</div>
-  </div>
-  <div class="footer-info">
-    ${biz.name?`${biz.name}<br>`:''}
-    ${biz.email?`${biz.email}<br>`:''}
-    Expediente #${String(c._n).padStart(3,'0')} · ${c._ts}
-  </div>
-</div>
-
-</div><!-- /page -->
-<script>
-// Render difficulty bar
-const dMap={fácil:[5,0,0,'FÁCIL'],media:[3,2,0,'MEDIA'],difícil:[1,1,3,'DIFÍCIL']};
-const [e,m,h,lbl]=dMap['${c.dificultad}']||dMap['media'];
-const dr=document.getElementById('diff-export');
-let b='';
-for(let i=0;i<e;i++)b+='<div class="ds easy"></div>';
-for(let i=0;i<m;i++)b+='<div class="ds med"></div>';
-for(let i=0;i<h;i++)b+='<div class="ds hard"></div>';
-for(let i=0;i<5-e-m-h;i++)b+='<div class="ds"></div>';
-dr.innerHTML=b+'<span class="diff-lbl">'+lbl+'</span>';
-<\/script>
-</body>
-</html>`;
+</body></html>`;
+    downloadHTML(html, baseName(c)+'_SOLUCION_CONFIDENCIAL.html');
+    hideLoading(); toast('Sobre sellado exportado','success');
+  }, 400);
 }
 
 // ═══════════════════════════════════════
