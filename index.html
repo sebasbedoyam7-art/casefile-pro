@@ -733,6 +733,15 @@ body { background:var(--bg); color:var(--t1); font-family:'Crimson Pro',serif; m
         </div>
 
         <div class="cfg-section">
+          <div class="cfg-title">API Key de Anthropic</div>
+          <div class="cfg-note" style="margin-bottom:10px">Necesaria para generar casos. Se guarda solo en este navegador, nunca se comparte. Obtené la tuya en <a href="https://console.anthropic.com" target="_blank" style="color:var(--gold)">console.anthropic.com</a></div>
+          <label class="field-label">API Key</label>
+          <input class="field-input" type="password" id="cfg-apikey" placeholder="sk-ant-..." style="margin-bottom:10px;font-family:'IBM Plex Mono',monospace;font-size:11px">
+          <button class="cfg-save-btn" onclick="saveApiKey()">Guardar API Key</button>
+          <div id="apikey-status" style="font-family:'IBM Plex Mono',monospace;font-size:9px;margin-top:8px;color:var(--t3)"></div>
+        </div>
+
+        <div class="cfg-section">
           <div class="cfg-title">Seguridad</div>
           <button class="cfg-save-btn" onclick="openPwdModal()" style="background:var(--s2);color:var(--t1);border:1px solid var(--b2);">🔑 Cambiar contraseña</button>
           <div class="cfg-note" style="margin-top:10px">Tu usuario y contraseña se almacenan localmente en este navegador. Para mayor seguridad, usa este sistema siempre desde el mismo dispositivo.</div>
@@ -855,6 +864,7 @@ function loadCfg() {
   document.getElementById('cfg-biz').value = bizCfg.name || '';
   document.getElementById('cfg-email').value = bizCfg.email || '';
   document.getElementById('cfg-web').value = bizCfg.web || '';
+  loadApiKeyField();
 }
 
 function saveCfg() {
@@ -918,23 +928,58 @@ const LD_MSGS = [
   'Clasificando evidencias...','Sellando el archivo...'
 ];
 
+function getApiKey() { return localStorage.getItem('cfpro_apikey') || ''; }
+
+function saveApiKey() {
+  const k = document.getElementById('cfg-apikey').value.trim();
+  if(!k.startsWith('sk-ant-')) {
+    document.getElementById('apikey-status').textContent = '⚠ La key debe empezar con sk-ant-';
+    document.getElementById('apikey-status').style.color = 'var(--red2)'; return;
+  }
+  localStorage.setItem('cfpro_apikey', k);
+  document.getElementById('apikey-status').textContent = '✓ API Key guardada';
+  document.getElementById('apikey-status').style.color = 'var(--green)';
+  toast('API Key guardada', 'success');
+}
+
+function loadApiKeyField() {
+  const k = getApiKey();
+  if(k) {
+    document.getElementById('cfg-apikey').value = k;
+    document.getElementById('apikey-status').textContent = '✓ API Key configurada';
+    document.getElementById('apikey-status').style.color = 'var(--green)';
+  }
+}
+
 async function generateCase() {
+  const apiKey = getApiKey();
+  if(!apiKey) {
+    switchPanel('cfg');
+    setTimeout(()=>{ document.getElementById('cfg-apikey').focus(); loadApiKeyField(); }, 200);
+    toast('Primero configurá tu API Key en Configuración','error');
+    return;
+  }
   const btn = document.getElementById('gen-btn');
   btn.disabled = true;
   showLoading(LD_MSGS[0]);
   let mi=0;
   const iv = setInterval(()=>{ mi=(mi+1)%LD_MSGS.length; setLoadMsg(LD_MSGS[mi]); }, 1800);
-
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:4000,
         messages:[{ role:'user', content:buildPrompt() }]
       })
     });
+    if(!r.ok) { const e = await r.json(); throw new Error(e.error?.message || r.status); }
     const data = await r.json();
     const raw = data.content[0].text;
     const clean = raw.replace(/```json|```/g,'').trim();
@@ -949,11 +994,14 @@ async function generateCase() {
     displayCase(c);
   } catch(err) {
     console.error(err);
-    toast('Error generando el caso. Intenta de nuevo.','error');
+    if(String(err.message).includes('401') || String(err.message).includes('invalid_api_key')) {
+      toast('API Key inválida. Verificá en Configuración.','error');
+      switchPanel('cfg');
+    } else {
+      toast('Error: ' + err.message,'error');
+    }
   } finally {
-    clearInterval(iv);
-    hideLoading();
-    btn.disabled=false;
+    clearInterval(iv); hideLoading(); btn.disabled=false;
   }
 }
 
