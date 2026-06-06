@@ -575,14 +575,27 @@ async function generateCase(){
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,messages:[{role:'user',content:buildPrompt()}]})
+      body:JSON.stringify({
+        model:'claude-sonnet-4-5',
+        max_tokens:16000,
+        messages:[
+          {role:'user', content: buildPrompt()},
+          {role:'assistant', content: '{'}
+        ]
+      })
     });
     if(!r.ok){const e=await r.json();throw new Error(e.error?.message||r.status)}
     const data=await r.json();
-    const raw=data.content[0].text;
+    let raw=data.content[0].text;
+    // If we used assistant prefill with '{', prepend it back
+    if(!raw.trim().startsWith('{')) raw = '{' + raw;
     const clean=raw.replace(/```json|```/g,'').trim();
     let c;
-    try{c=JSON.parse(clean)}catch(pe){throw new Error('JSON inválido — intentá de nuevo')}
+    try{c=JSON.parse(clean)}catch(pe){
+      // Try to fix truncated JSON by finding last complete field
+      console.error('JSON parse error, raw:', clean.substring(0,500));
+      throw new Error('Caso demasiado largo — intentá con duración Mediano o reducí la complejidad');
+    }
     // Generate images if OpenAI key set
     const openaiKey=localStorage.getItem('cfpro_openai')||'';
     if(openaiKey&&c.fotos&&c.fotos.length){
@@ -605,7 +618,7 @@ async function generateCase(){
 
 function buildPrompt(){
   const tMap={aleatorio:'aleatorio (puede ser ficticio o real)',ficticio:'completamente ficticio',inspirado:'inspirado en casos reales con nombres cambiados'};
-  const dMap={aleatorio:'aleatoria',corto:'CORTA: 2-3 sospechosos, 4 evidencias, 2 entrevistas, 2 audios, 3 fotos, 1 documento, 6 eventos cronología',mediano:'MEDIANA: 4-5 sospechosos, 8 evidencias, 4 entrevistas, 3 audios, 4 fotos, 2 documentos, 8 eventos',largo:'LARGA: 6 sospechosos, 10 evidencias, 5 entrevistas, 4 audios, 5 fotos, 3 documentos, 10 eventos'};
+  const dMap={aleatorio:'aleatoria (elige corto o mediano, NO largo)',corto:'CORTA: 2-3 sospechosos, 4 evidencias, 2 entrevistas, 2 audios, 3 fotos, 1 documento, 6 eventos. Respuestas BREVES (1-2 oraciones por campo)',mediano:'MEDIANA: 4 sospechosos, 7 evidencias, 3 entrevistas con 3 preguntas c/u, 3 audios, 4 fotos, 2 documentos, 8 eventos. Respuestas CONCISAS',largo:'LARGA: 5 sospechosos, 8 evidencias, 4 entrevistas con 3 preguntas c/u, 3 audios, 4 fotos, 2 documentos, 8 eventos. IMPORTANTE: mantené cada campo MUY BREVE (máx 2 oraciones), priorizá completar el JSON correctamente'};
   const seed=Math.floor(Math.random()*999999);
   const epochs=['antigüedad','edad media','era victoriana','1920s','1930s noir','1940s','época contemporánea'];
   const places=['mansión','teatro de ópera','transatlántico','hotel art déco','estación de tren','hospital','convento','casino','isla remota','museo'];
@@ -619,7 +632,14 @@ Tipo: ${tMap[opts.type]||tMap.aleatorio}. Complejidad: ${dMap[opts.dur]||dMap.al
 Dificultad: ${opts.dif==='cualquiera'?'elige libremente':opts.dif}.
 Usa nombres, lugares y métodos completamente originales. Responde SOLO con JSON válido y completo:
 
-{"titulo":"","tipo":"ficticio","duracion":"corto","ambientacion":"","fecha_crimen":"","lugar":"","victima":"","victima_perfil":"","metodo":"","subtitulo":"","narrativa":"","dificultad":"media","sospechosos":[{"nombre":"","rol":"","descripcion":"","coartada":"","motive":"","culpable":false}],"evidencias":[{"nombre":"","tipo":"fisico","descripcion":"","icono":"🔍","red_herring":false}],"informe_forense":"","entrevistas":[{"entrevistado":"","fecha":"","qa":[{"pregunta":"","respuesta":""}]}],"audios":[{"titulo":"","tipo":"llamada","duracion":"01:30","transcripcion":""}],"fotos":[{"id":"FOTO-01","titulo":"","descripcion":"descripción visual detallada para generar imagen","relevancia":""}],"documentos":[{"titulo":"","tipo":"carta","contenido":""}],"cronologia":[{"hora":"20:00","evento":""}],"solucion":{"culpable":"","explicacion":""},"pistas_clave":["","",""]}`;
+REGLAS CRÍTICAS PARA LA CRONOLOGÍA:
+- La cronología debe contener SOLO hechos que los jugadores pueden verificar o descubrir
+- NO incluir acciones del culpable que no puedan ser descubiertas sin resolver el caso
+- NO revelar quién hizo qué en la cronología — eso va solo en "solucion"
+- Usar frases ambiguas: "Alguien accede a la habitación", "Se escucha un ruido", "La víctima es vista por última vez"
+- La cronología es una herramienta de investigación, NO un resumen del crimen
+
+{"titulo":"","tipo":"ficticio","duracion":"corto","ambientacion":"","fecha_crimen":"","lugar":"","victima":"","victima_perfil":"","metodo":"","subtitulo":"","narrativa":"","dificultad":"media","sospechosos":[{"nombre":"","rol":"","descripcion":"","coartada":"","motive":"","culpable":false}],"evidencias":[{"nombre":"","tipo":"fisico","descripcion":"","icono":"🔍","red_herring":false}],"informe_forense":"","entrevistas":[{"entrevistado":"","fecha":"","qa":[{"pregunta":"","respuesta":""}]}],"audios":[{"titulo":"","tipo":"llamada","duracion":"01:30","transcripcion":""}],"fotos":[{"id":"FOTO-01","titulo":"","descripcion":"descripción visual detallada para generar imagen","relevancia":""}],"documentos":[{"titulo":"","tipo":"carta","contenido":""}],"cronologia":[{"hora":"20:00","evento":"Evento ambiguo observable por testigos, sin revelar al culpable"}],"solucion":{"culpable":"","explicacion":""},"pistas_clave":["","",""]}`;
 }
 
 // ═══ DALL-E IMAGES ═══
